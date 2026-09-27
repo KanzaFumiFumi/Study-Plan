@@ -8,7 +8,7 @@ import { formatIntervals, parseIntervals, validateSettings } from '../domain/set
 import type { Settings } from '../domain/types.ts'
 import { useToday } from '../hooks/useToday.ts'
 import { useToast } from '../components/Toast.tsx'
-import { Button, Card, Field, ScreenTitle, inputClass } from '../components/ui.tsx'
+import { Button, Card, Field, ScreenTitle, inputBaseClass, inputClass } from '../components/ui.tsx'
 
 function SettingsForm() {
   const { uid, settings } = useData()
@@ -37,7 +37,7 @@ function SettingsForm() {
   const numberInput = (value: string, onChange: (v: string) => void, label: string) => (
     <div className="flex items-center gap-2">
       <input
-        className={`${inputClass} w-24 text-right tabular-nums`}
+        className={`${inputBaseClass} w-24 text-right tabular-nums`}
         inputMode="numeric"
         pattern="[0-9]*"
         aria-label={label}

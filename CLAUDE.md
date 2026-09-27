@@ -23,6 +23,7 @@ Sparkプランの範囲で動かす（Cloud Functions など有料機能は使�
 | `npm run test:rules` | セキュリティルールのテスト（エミュレータを自動起動） |
 | `npm run build` | 型チェック＋本番ビルド |
 | `npm run icons` | `public/icon.svg` から PWA アイコンを生成 |
+| `npm run deploy` | ビルドして Hosting と Firestore ルールをデプロイ（初回の準備は README） |
 
 Windows で Node / Java を winget で入れた直後は、シェルの PATH を読み直すこと。
 エミュレータは `scripts/firebase-emu.mjs` 経由で起動する（ユーザー名に空白があると Java が一時ソケットを作れないため、
