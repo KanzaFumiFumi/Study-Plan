@@ -1,0 +1,30 @@
+# 依存・ビルド成果物
+node_modules/
+dist/
+dev-dist/
+*.tsbuildinfo
+
+# 環境変数（.env.example だけコミットする）
+.env
+.env.*
+!.env.example
+
+# Firebase
+.firebase/
+.firebaserc
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+ui-debug.log
+emulator-data/
+
+# Claude Code のローカル設定（このPC専用のパスを含む）
+.claude/launch.json
+
+# エディタ・OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.log
