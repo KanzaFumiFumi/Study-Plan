@@ -1,7 +1,7 @@
 import { Timestamp, doc, writeBatch, type DocumentData, type DocumentReference, type WriteBatch } from 'firebase/firestore'
 import { db } from '../firebase.ts'
 import type { ChangeSet } from '../domain/changeset.ts'
-import type { Exam, MaterialKind } from '../domain/types.ts'
+import type { Exam, MaterialKind, Settings } from '../domain/types.ts'
 import { newTaskData, taskPatchData } from './converters.ts'
 import { reportDataError } from './errors.ts'
 import {
@@ -11,6 +11,7 @@ import {
   materialsCol,
   rangeDoc,
   rangesCol,
+  settingsDoc,
   taskDoc,
   tasksCol,
   unitDoc,
@@ -62,6 +63,14 @@ function addChangeSet(w: Writer, uid: string, cs: ChangeSet, now: number) {
 export function saveChangeSet(uid: string, cs: ChangeSet): void {
   const w = new Writer()
   addChangeSet(w, uid, cs, Date.now())
+  w.commit()
+}
+
+// ---- 設定 ----
+
+export function saveSettings(uid: string, settings: Settings): void {
+  const w = new Writer()
+  w.set(settingsDoc(uid), { ...settings })
   w.commit()
 }
 
