@@ -116,6 +116,7 @@ export function SettingsScreen({ user }: { user: User }) {
             ログアウト
           </Button>
         </Card>
+        <p className="text-center text-xs text-slate-400">学習ワークフロー v{__APP_VERSION__}</p>
       </div>
     </>
   )

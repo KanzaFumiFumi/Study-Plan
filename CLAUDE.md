@@ -74,3 +74,11 @@ Windows で Node / Java を winget で入れた直後は、シェルの PATH を
 
 ## 進め方
 段階ごとに動く状態で日本語のメッセージでコミットする。ライブラリの書き方は実装前に公式ドキュメントで確認する。
+
+## バージョン管理
+- リモートは GitHub（`origin`）、ブランチは `main`。
+- バージョンは `package.json` の `version`・Git の注釈付きタグ `vX.Y.Z`・`CHANGELOG.md` の3つをそろえる。
+  機能の追加・変更は 2つめ（0.1.0 → 0.2.0）、不具合の修正だけなら 3つめ（→ 0.1.1）を上げる。
+- リリースの手順：`CHANGELOG.md` に追記 → `package.json` の `version` を上げる → コミット →
+  `git tag -a vX.Y.Z -m "…"` → `git push origin main --follow-tags`。
+- バージョンはビルド時に `__APP_VERSION__` として埋め込まれ、設定画面の一番下に表示される。
