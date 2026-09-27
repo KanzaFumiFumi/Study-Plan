@@ -17,6 +17,7 @@ firebase-debug.*.log
 firestore-debug.log
 ui-debug.log
 emulator-data/
+.emulator-tmp/
 
 # Claude Code のローカル設定（このPC専用のパスを含む）
 .claude/launch.json

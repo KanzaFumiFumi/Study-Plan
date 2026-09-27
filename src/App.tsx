@@ -1,29 +1,13 @@
-import { useEffect, useState } from 'react'
-import { TAB_KEYS, TabBar, type TabKey } from './components/TabBar.tsx'
-
-function tabFromHash(): TabKey {
-  const key = window.location.hash.slice(1) as TabKey
-  return TAB_KEYS.includes(key) ? key : 'today'
-}
+import { useAuthUser } from './data/useAuthUser.ts'
+import { LoginScreen } from './screens/LoginScreen.tsx'
+import { Shell } from './Shell.tsx'
 
 export default function App() {
-  const [tab, setTab] = useState<TabKey>(tabFromHash)
+  const user = useAuthUser()
 
-  // 再読み込みしても同じタブを開くよう、URLの # に今のタブを入れておく
-  useEffect(() => {
-    history.replaceState(null, '', `#${tab}`)
-    window.scrollTo(0, 0)
-  }, [tab])
-
-  return (
-    <div className="mx-auto min-h-full max-w-lg">
-      <main className="px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-[calc(env(safe-area-inset-bottom)+5rem)]">
-        <h1 className="text-xl font-bold">
-          {{ today: '今日', shelf: '本棚', exams: '試験', settings: '設定' }[tab]}
-        </h1>
-        <p className="mt-4 text-sm text-slate-500">準備中</p>
-      </main>
-      <TabBar current={tab} onChange={setTab} />
-    </div>
-  )
+  if (user === undefined) {
+    return <div className="flex min-h-screen items-center justify-center text-sm text-slate-400">読み込み中…</div>
+  }
+  if (user === null) return <LoginScreen />
+  return <Shell key={user.uid} user={user} />
 }

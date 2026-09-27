@@ -25,6 +25,10 @@ Sparkプランの範囲で動かす（Cloud Functions など有料機能は使�
 | `npm run icons` | `public/icon.svg` から PWA アイコンを生成 |
 
 Windows で Node / Java を winget で入れた直後は、シェルの PATH を読み直すこと。
+エミュレータは `scripts/firebase-emu.mjs` 経由で起動する（ユーザー名に空白があると Java が一時ソケットを作れないため、
+`-Djdk.net.unixdomain.tmpdir` を `.emulator-tmp/` に向けている）。
+エミュレータ接続中はログイン画面に「テスト用アカウント alice / bob」ボタンが出る（`signInWithCredential` に署名なしトークン）。
+開発中にオフラインを試すときは、ブラウザのコンソールで `__studyPlanDebug.goOffline()` / `goOnline()`。
 
 ## ディレクトリ
 - `src/domain/` … **Firestoreに依存しない純粋関数**（タスク生成ロジック）とテスト。UI・保存処理を入れない。
