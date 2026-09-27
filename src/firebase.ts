@@ -30,9 +30,17 @@ export const db = initializeFirestore(app, {
 if (USE_EMULATOR) {
   connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true })
   connectFirestoreEmulator(db, '127.0.0.1', 8080)
-  // 開発中にオフライン状態を試すための切り替え（エミュレータ接続時だけ）
+  // 開発中の動作確認用（エミュレータ接続時だけ）：オフラインの切り替えと「今日」の差し替え
   Object.assign(window, {
-    __studyPlanDebug: { goOffline: () => disableNetwork(db), goOnline: () => enableNetwork(db) },
+    __studyPlanDebug: {
+      goOffline: () => disableNetwork(db),
+      goOnline: () => enableNetwork(db),
+      setToday: (date?: string) => {
+        if (date) sessionStorage.setItem('debugToday', date)
+        else sessionStorage.removeItem('debugToday')
+        window.dispatchEvent(new Event('studyplan:today-changed'))
+      },
+    },
   })
 }
 
