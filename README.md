@@ -25,6 +25,10 @@
 npm install
 ```
 
+> **Windows の PowerShell で「このシステムではスクリプトの実行が無効になっているため…」と出たとき**
+> `npx` を `npx.cmd`、`npm` を `npm.cmd` に置き換えて実行してください（例：`npx.cmd firebase login`、`npm.cmd run deploy`）。
+> PowerShell の実行ポリシー（セキュリティ設定）を変える必要はありません。
+
 ### 1. Firebase プロジェクトを作る
 
 1. [Firebase コンソール](https://console.firebase.google.com/) を開き、Google アカウントでログインする
@@ -53,6 +57,8 @@ npm install
 3. ロケーションは **`asia-northeast1`（東京）** を選ぶ（**あとから変更できません**）
 4. セキュリティルールは **「本番環境モード（Production mode）」** を選んで作成する
    （ルールは、このリポジトリの `firestore.rules` を手順 7 でデプロイして上書きします）
+
+コンソールで作らなくても、手順 7 のデプロイで自動的に作られます（`firebase.json` に場所 `asia-northeast1` を指定済み）。
 
 ### 5. `.env` を作る
 
