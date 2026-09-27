@@ -1,11 +1,12 @@
 import { Timestamp, doc, writeBatch, type DocumentData, type DocumentReference, type WriteBatch } from 'firebase/firestore'
 import { db } from '../firebase.ts'
 import type { ChangeSet } from '../domain/changeset.ts'
-import type { MaterialKind } from '../domain/types.ts'
+import type { Exam, MaterialKind } from '../domain/types.ts'
 import { newTaskData, taskPatchData } from './converters.ts'
 import { reportDataError } from './errors.ts'
 import {
   examDoc,
+  examsCol,
   materialDoc,
   materialsCol,
   rangeDoc,
@@ -60,6 +61,30 @@ function addChangeSet(w: Writer, uid: string, cs: ChangeSet, now: number) {
 /** タスク生成ロジックの結果を保存する */
 export function saveChangeSet(uid: string, cs: ChangeSet): void {
   const w = new Writer()
+  addChangeSet(w, uid, cs, Date.now())
+  w.commit()
+}
+
+// ---- 試験 ----
+
+/** 新しい試験のIDを先に採番する（タスクの examIds に入れるため） */
+export function newExamId(uid: string): string {
+  return doc(examsCol(uid)).id
+}
+
+/** 試験を保存する。cs は applyExamSave の結果（タスクの作成・まとめ・範囲外し） */
+export function saveExam(uid: string, exam: Exam, cs: ChangeSet): void {
+  const w = new Writer()
+  const { id, ...data } = exam
+  w.set(examDoc(uid, id), data)
+  addChangeSet(w, uid, cs, Date.now())
+  w.commit()
+}
+
+/** 試験を削除する。cs は applyExamDelete の結果（未完了タスクの examIds から外す） */
+export function deleteExam(uid: string, examId: string, cs: ChangeSet): void {
+  const w = new Writer()
+  w.delete(examDoc(uid, examId))
   addChangeSet(w, uid, cs, Date.now())
   w.commit()
 }

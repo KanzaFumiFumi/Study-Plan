@@ -3,7 +3,7 @@ import type { User } from 'firebase/auth'
 import { DataProvider, useData } from './data/store.tsx'
 import { TAB_KEYS, TabBar, type TabKey } from './components/TabBar.tsx'
 import { ToastProvider } from './components/Toast.tsx'
-import { ScreenTitle } from './components/ui.tsx'
+import { ExamsScreen } from './screens/ExamsScreen.tsx'
 import { SettingsScreen } from './screens/SettingsScreen.tsx'
 import { ShelfScreen } from './screens/ShelfScreen.tsx'
 import { TodayScreen } from './screens/TodayScreen.tsx'
@@ -22,15 +22,10 @@ function Screen({ tab, user }: { tab: TabKey; user: User }) {
       return <TodayScreen />
     case 'shelf':
       return <ShelfScreen />
+    case 'exams':
+      return <ExamsScreen />
     case 'settings':
       return <SettingsScreen user={user} />
-    default:
-      return (
-        <>
-          <ScreenTitle>試験</ScreenTitle>
-          <p className="text-sm text-slate-500">準備中</p>
-        </>
-      )
   }
 }
 
