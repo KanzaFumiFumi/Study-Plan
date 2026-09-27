@@ -6,6 +6,8 @@ import { ToastProvider } from './components/Toast.tsx'
 import { ScreenTitle } from './components/ui.tsx'
 import { SettingsScreen } from './screens/SettingsScreen.tsx'
 import { ShelfScreen } from './screens/ShelfScreen.tsx'
+import { TodayScreen } from './screens/TodayScreen.tsx'
+import { SyncStatus } from './components/SyncStatus.tsx'
 
 function tabFromHash(): TabKey {
   const key = window.location.hash.slice(1) as TabKey
@@ -16,6 +18,8 @@ function Screen({ tab, user }: { tab: TabKey; user: User }) {
   const { loading } = useData()
   if (loading) return <p className="py-20 text-center text-sm text-slate-400">読み込み中…</p>
   switch (tab) {
+    case 'today':
+      return <TodayScreen />
     case 'shelf':
       return <ShelfScreen />
     case 'settings':
@@ -23,7 +27,7 @@ function Screen({ tab, user }: { tab: TabKey; user: User }) {
     default:
       return (
         <>
-          <ScreenTitle>{tab === 'today' ? '今日' : '試験'}</ScreenTitle>
+          <ScreenTitle>試験</ScreenTitle>
           <p className="text-sm text-slate-500">準備中</p>
         </>
       )
@@ -44,6 +48,7 @@ export function Shell({ user }: { user: User }) {
       <ToastProvider>
         <div className="mx-auto min-h-full max-w-lg">
           <main className="px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-[calc(env(safe-area-inset-bottom)+5.5rem)]">
+            <SyncStatus />
             <Screen key={tab} tab={tab} user={user} />
           </main>
           <TabBar current={tab} onChange={setTab} />

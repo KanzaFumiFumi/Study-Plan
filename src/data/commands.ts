@@ -48,7 +48,8 @@ class Writer {
 }
 
 function addChangeSet(w: Writer, uid: string, cs: ChangeSet, now: number) {
-  for (const task of cs.createTasks) w.set(doc(tasksCol(uid)), newTaskData(task, now))
+  // 同時に作ったタスクも作った順に並ぶよう、createdAt を1ミリ秒ずつずらす
+  cs.createTasks.forEach((task, i) => w.set(doc(tasksCol(uid)), newTaskData(task, now + i)))
   for (const { id, patch } of cs.updateTasks) w.update(taskDoc(uid, id), taskPatchData(patch))
   for (const id of cs.deleteTasks) w.delete(taskDoc(uid, id))
   for (const { materialId, unitId, patch } of cs.updateUnits) w.update(unitDoc(uid, materialId, unitId), patch)
