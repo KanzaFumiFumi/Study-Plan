@@ -1,7 +1,13 @@
 # 学習ワークフロー管理PWA（個人用）
 
-問題集の「周回」と単語帳などの「暗記」を、定期考査・模試・資格・共通テストのどれでも同じ手順で回すための個人用ToDo。
-利用者は1人。スマホ（ホーム画面のPWA）とPCの両方で使う。**UIの文言はすべて日本語。**
+問題集の「周回」と単語帳などの「暗記」を、定期考査・模試・資格・共通テスト、さらに大会・旅行・趣味などの「予定」に向けて
+同じ手順で回すための個人用ToDo。利用者は1人。スマホ（ホーム画面のPWA）とPCの両方で使う。**UIの文言はすべて日本語。**
+
+## 見た目（v0.2〜）
+- テーマカラーは黒。落ち着いたモノトーン（`stone` 系の灰色）。色を使うのは「遅れ」（赤）と「残りの印」（琥珀）だけ。
+- テーマカラーと背景は `src/index.css` の `@theme`（`--color-ink` / `--color-paper`）で定義し、`bg-ink` `text-ink` などで使う。
+  PWA の色は `vite.config.ts`・`index.html`・`public/icon.svg`（`npm run icons` で再生成）に同じ値を書いている。
+- 画面：今日・本棚・予定・設定（タブ）＋ 使い方（`GuideScreen`、今日の「?」と設定から開く。勉強の流れの図つき）。
 
 ## 最重要の設計原則
 - **入力はToDoの「完了」操作1か所に集約する。** 完了すると単元・範囲の記録が更新され、次のタスクが自動で作られる。
@@ -33,15 +39,17 @@ Windows で Node / Java を winget で入れた直後は、シェルの PATH を
 
 ## ディレクトリ
 - `src/domain/` … **Firestoreに依存しない純粋関数**（タスク生成ロジック）とテスト。UI・保存処理を入れない。
-  - 関数は「今の状態＋入力＋今日の日付」を受け取り、`ChangeSet`（作る/更新する/消すタスク、単元・範囲・試験の更新）を返す。
+  - 関数は「今の状態＋入力＋今日の日付」を受け取り、`ChangeSet`（作る/更新する/消すタスク、単元・範囲・予定の更新）を返す。
 - `src/data/` … Firestore の読み書き。`onSnapshot` で全データをメモリに保持し、`ChangeSet` を `writeBatch` で保存する。
-- `src/screens/` … 今日・本棚・試験・設定・ログインの各画面。`src/components/` … 共通部品。
+- `src/screens/` … 今日・本棚・予定・設定・使い方・ログインの各画面。`src/components/` … 共通部品。
+- 「予定」は v0.1 の「試験」を広げたもの。**保存先・型・関数名は互換のため exam のまま**（`exams` コレクション、`Exam`、`examIds`、
+  `ExamsScreen`、タブのキー `exams`）。画面の文言だけ「予定」。タスク種別 `exam` の表示名は「仕上げ」。
 
 ## 実装上の約束
 - **日付は日本時間（Asia/Tokyo）。** 期限などの日付は `YYYY-MM-DD` 文字列で保存・計算する（`src/domain/date.ts`）。`Date` の現地時刻は使わない。
 - **オフラインで動くこと。** トランザクションはオフラインで失敗するので使わず `writeBatch` を使う。
   `batch.commit()` はサーバーに届くまで resolve しないので、**UIで await しない**（ローカルキャッシュには即反映される）。
-- 購読するのは 教材・単元・範囲・試験・設定 と **未完了のタスクだけ**。完了済みタスクは JSON 書き出し時だけ読む。
+- 購読するのは 教材・単元・範囲・予定・設定 と **未完了のタスクだけ**。完了済みタスクは JSON 書き出し時だけ読む。
 - Firestore の Timestamp（`createdAt`, `completedAt`）は domain 側ではミリ秒の数値で扱い、data 層で変換する。
 - Firebase の接続設定は `.env`（`VITE_FIREBASE_*`）から読む。コミットするのは `.env.example` だけ。
 - セキュリティルール：`users/{uid}` 以下は本人だけ読み書きでき、それ以外はすべて拒否（`firestore.rules`）。
@@ -50,7 +58,9 @@ Windows で Node / Java を winget で入れた直後は、シェルの PATH を
 - `materials/{id}` 教材：`name, subject, kind('cycle'|'memorize'), archived, createdAt`
 - `materials/{id}/units/{id}` 周回系の単元：`name, order, lapCount, remainingMarks|null, graduated, lastDoneAt|null`
 - `materials/{id}/ranges/{id}` 暗記系の範囲：`label, order, started, step, nextReviewAt|null, lastResult{known,half,unknown}|null`
-- `exams/{id}` 試験：`name, category, date, unitRefs{materialId,unitId}[]`
+- `exams/{id}` 予定（試験・大会・旅行・趣味など）：`name, category, date, unitRefs{materialId,unitId}[]`,
+  `rangeRefs{materialId,rangeId}[]`（v0.2〜、暗記の範囲）, `leadDays|null`（v0.2〜、何日前までに仕上げるか。null なら設定の値）
+  - v0.1 のデータには後の2つがないので、読み込み時に `[]` / `null` で補う（`src/data/converters.ts`）。
 - `tasks/{id}` タスク：`type('first'|'cycle'|'exam'|'redo'|'memorize'|'assignment'), title, materialId, unitId, rangeId, examIds[], dueDate, status('open'|'done'), completedAt, createdAt, result`
   - 仕様に対する追加：`createdAt`（同順位の並びを安定させる）、`result`（完了時の入力値。周回の履歴として JSON に残る）
 - `settings/main` 設定：`cycleIntervalDays(7), examLeadDays(3), memorizeIntervals([1,3,7,14,30])`
@@ -60,13 +70,17 @@ Windows で Node / Java を winget で入れた直後は、シェルの PATH を
   - 学校課題を単元に紐づけたとき既存タスクがあれば、そのタスクを課題に切り替える（タイトル反映、examIds は保持）。
 - 周回系の完了（first/cycle/exam/redo/単元つきassignment）：残りの印の数を入力 → `lapCount+1`、0なら卒業、
   1以上なら `今日+cycleIntervalDays` の cycle タスク（他に未完了タスクがなければ）。
-- 試験の登録・編集：範囲内の単元ごとに、卒業済みは何もしない／未着手は first／周回中は exam。期限は `試験日-examLeadDays`。
-  - その期限が今日より前なら今日にする。**試験日がすでに過ぎていればタスクを作らない。**
-  - 範囲から外した・試験を削除した → 未完了タスクの examIds から外すだけ（タスクは消さない、期限も変えない）。
+- 予定の登録・編集：範囲内の単元ごとに、卒業済みは何もしない／未着手は first／周回中は exam（仕上げ）。
+  期限は `予定の日 - (leadDays ?? examLeadDays)`。
+  - その期限が今日より前なら今日にする。**予定の日がすでに過ぎていればタスクを作らない。**
+  - 範囲の暗記の範囲：未完了の memorize があれば examIds に足すだけ（復習日は変えない）。なければ開始して今日期限の memorize。
+  - 範囲から外した・予定を削除した → 未完了タスクの examIds から外すだけ（タスクは消さない、期限も変えない）。
+  - 単元・範囲を削除したら、予定の unitRefs / rangeRefs からも外す。
 - 暗記：開始で今日期限の memorize。完了で 知/半知/未知 を入力し、`半知+未知==0` なら step+1。
   `nextReviewAt = 今日 + memorizeIntervals[min(step, 最後)]`。判定は `src/domain/memorize.ts` の1か所。
-- 今日の一覧：期限が今日以前の未完了。順番は assignment(締切順) → first → exam(試験日順) → memorize → cycle → redo。
+- 今日の一覧：期限が今日以前の未完了。順番は assignment(締切順) → first → exam(予定の日順) → memorize → cycle → redo。
   期限が今日より前なら「遅れ」。アーカイブした教材のタスクは出さない。
+  その下に「これからの7日間」（`upcomingTasks`）を折りたたみで出す。タップすれば前倒しで完了できる。
 
 ## MVPの範囲外（実装しない）
 共通テストからの逆算・週ノルマ・週次照合・予備日 / 周回タスクを混ぜて解く支援 / グラフ・統計 / 通知 /

@@ -6,8 +6,8 @@ export function UnitStatus({ unit }: { unit: Unit }) {
   if (unit.lapCount === 0) return <Badge>未着手</Badge>
   return (
     <span className="flex items-center gap-1">
-      <Badge tone="indigo">{unit.lapCount}周</Badge>
-      {unit.graduated ? <Badge tone="green">卒業</Badge> : <Badge tone="amber">残り{unit.remainingMarks ?? '?'}</Badge>}
+      <Badge tone="outline">{unit.lapCount}周</Badge>
+      {unit.graduated ? <Badge tone="ink">卒業</Badge> : <Badge tone="warn">残り{unit.remainingMarks ?? '?'}</Badge>}
     </span>
   )
 }

@@ -3,6 +3,9 @@
 @theme {
   --font-sans: system-ui, -apple-system, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI",
     Meiryo, sans-serif;
+  /* テーマカラー（黒）と背景。配色を変えるときはここを直す（bg-ink / text-ink / bg-paper などで使う） */
+  --color-ink: #1c1b19;
+  --color-paper: #f5f4f0;
 }
 
 html,
@@ -12,9 +15,12 @@ body,
 }
 
 body {
-  @apply bg-slate-50 text-slate-900 antialiased;
+  @apply bg-paper text-ink antialiased;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior-y: none;
+  /* 和文を詰めて組む（落ち着いた見た目にする） */
+  font-feature-settings: "palt";
+  letter-spacing: 0.02em;
 }
 
 /* iOS は 16px 未満の入力欄にフォーカスすると画面を拡大するので、入力欄は常に 16px 以上にする */

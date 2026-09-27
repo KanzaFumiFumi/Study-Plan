@@ -51,7 +51,7 @@ export function AddFirstLapSheet({ onClose }: { onClose: () => void }) {
         </Button>
       }
     >
-      <p className="mb-3 text-sm text-slate-600">授業・課題で今日解いた範囲の単元を選んでください（未着手の単元だけを表示）。</p>
+      <p className="mb-3 text-sm text-stone-600">授業・課題で今日解いた範囲の単元を選んでください（未着手の単元だけを表示）。</p>
       <UnitPicker
         selected={selected}
         onChange={setSelected}

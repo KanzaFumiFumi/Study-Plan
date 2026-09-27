@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { todayTasks } from './sort.ts'
+import { todayTasks, upcomingTasks } from './sort.ts'
 import { makeExam, makeTask } from './test-helpers.ts'
 import type { TaskType } from './types.ts'
 
@@ -59,5 +59,24 @@ describe('4.7 今日の一覧', () => {
   test('非表示にした教材（アーカイブ）のタスクは出さない', () => {
     const tasks = [t('a', 'cycle', today, { materialId: 'archived' }), t('b', 'cycle'), t('c', 'assignment', today, { materialId: null })]
     expect(todayTasks(tasks, [], today, new Set(['archived'])).map((x) => x.task.id)).toEqual(['c', 'b'])
+  })
+})
+
+describe('これからのタスク（v0.2）', () => {
+  test('明日から7日後までを期限の早い順に。同じ日は種類の順。それより先は件数だけ', () => {
+    const tasks = [
+      t('today', 'cycle', today),
+      t('d3-cycle', 'cycle', '2026-09-30'),
+      t('d3-first', 'first', '2026-09-30'),
+      t('d1', 'redo', '2026-09-28'),
+      t('d7', 'memorize', '2026-10-04'),
+      t('d8', 'cycle', '2026-10-05'),
+      t('d30', 'exam', '2026-10-27'),
+      t('done', 'cycle', '2026-09-29', { status: 'done' }),
+      t('hidden', 'cycle', '2026-09-29', { materialId: 'archived' }),
+    ]
+    const { tasks: list, later } = upcomingTasks(tasks, today, 7, new Set(['archived']))
+    expect(list.map((x) => x.id)).toEqual(['d1', 'd3-first', 'd3-cycle', 'd7'])
+    expect(later).toBe(2)
   })
 })

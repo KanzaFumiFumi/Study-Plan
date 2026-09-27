@@ -19,7 +19,7 @@ function NextTask({ task, today }: { task: Task | undefined; today: string }) {
   if (!task) return null
   const overdue = task.dueDate < today
   return (
-    <p className={`mt-0.5 text-xs ${overdue ? 'text-red-600' : 'text-slate-500'}`}>
+    <p className={`mt-0.5 text-xs ${overdue ? 'text-red-600' : 'text-stone-500'}`}>
       次：{formatShortDate(task.dueDate)} {TASK_TYPE_LABEL[task.type]}
       {overdue && '（遅れ）'}
     </p>
@@ -74,15 +74,15 @@ export function MaterialDetail({ material, onBack }: { material: Material; onBac
       </ScreenTitle>
       <div className="-mt-2 mb-4 flex flex-wrap items-center gap-1.5">
         {material.subject && <Badge>{material.subject}</Badge>}
-        <Badge tone={isCycle ? 'indigo' : 'emerald'}>{isCycle ? '周回系' : '暗記系'}</Badge>
-        {material.archived && <Badge tone="amber">アーカイブ済み</Badge>}
+        <Badge tone="outline">{isCycle ? '周回系' : '暗記系'}</Badge>
+        {material.archived && <Badge tone="warn">アーカイブ済み</Badge>}
       </div>
 
       <div className="mb-4 grid gap-2" style={{ gridTemplateColumns: `repeat(${summary.length}, 1fr)` }}>
         {summary.map(([label, count]) => (
-          <div key={label} className="rounded-xl bg-white p-2 text-center ring-1 ring-slate-200">
+          <div key={label} className="rounded-xl bg-white p-2 text-center ring-1 ring-stone-200">
             <p className="text-lg font-bold tabular-nums">{count}</p>
-            <p className="text-xs text-slate-500">{label}</p>
+            <p className="text-xs text-stone-500">{label}</p>
           </div>
         ))}
       </div>
@@ -90,14 +90,14 @@ export function MaterialDetail({ material, onBack }: { material: Material; onBac
       {items.length === 0 ? (
         <EmptyState>{childLabel}がまだありません。下のボタンから、改行区切りでまとめて追加できます。</EmptyState>
       ) : (
-        <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200">
+        <ul className="divide-y divide-stone-100 overflow-hidden rounded-2xl bg-white ring-1 ring-stone-200">
           {isCycle
             ? myUnits.map((unit) => (
                 <li key={unit.id}>
                   <button
                     type="button"
                     onClick={() => setEditItem({ kind: 'unit', unit })}
-                    className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-slate-50"
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-stone-50"
                   >
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium">{unit.name}</p>
@@ -114,19 +114,19 @@ export function MaterialDetail({ material, onBack }: { material: Material; onBac
                     <button
                       type="button"
                       onClick={() => setEditItem({ kind: 'range', range })}
-                      className="flex min-w-0 flex-1 items-center gap-3 py-3 pr-2 pl-4 text-left active:bg-slate-50"
+                      className="flex min-w-0 flex-1 items-center gap-3 py-3 pr-2 pl-4 text-left active:bg-stone-50"
                     >
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-medium">{range.label}</p>
                         {range.lastResult && (
-                          <p className="mt-0.5 text-xs text-slate-500">
+                          <p className="mt-0.5 text-xs text-stone-500">
                             前回：知{range.lastResult.known}・半知{range.lastResult.half}・未知{range.lastResult.unknown}
                           </p>
                         )}
                         <NextTask task={task} today={today} />
                       </div>
                       {range.started && (
-                        <Badge tone="emerald">
+                        <Badge tone="outline">
                           段階{Math.min(range.step, settings.memorizeIntervals.length - 1) + 1}/{settings.memorizeIntervals.length}
                         </Badge>
                       )}

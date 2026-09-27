@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
-const THEME_COLOR = '#4f46e5'
+const THEME_COLOR = '#1c1b19'
 // 設定画面に表示するバージョン（package.json の version）
 const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }
 
@@ -26,7 +26,7 @@ export default defineConfig({
         scope: '/',
         display: 'standalone',
         orientation: 'portrait',
-        background_color: '#f8fafc',
+        background_color: '#f5f4f0',
         theme_color: THEME_COLOR,
         icons: [
           { src: 'pwa-64x64.png', sizes: '64x64', type: 'image/png' },

@@ -12,7 +12,7 @@ function plain(value: unknown): unknown {
 }
 
 /**
- * 全データ（教材・単元・範囲・試験・完了済みを含む全タスク・設定）を1つのオブジェクトにまとめる（バックアップ用）。
+ * 全データ（教材・単元・範囲・予定・完了済みを含む全タスク・設定）を1つのオブジェクトにまとめる（バックアップ用）。
  * オフラインのときはキャッシュにある分を書き出す。
  */
 export async function collectAllData(uid: string): Promise<Record<string, unknown>> {

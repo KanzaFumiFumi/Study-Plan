@@ -1,7 +1,7 @@
 import { emptyChangeSet, type ChangeSet } from './changeset.ts'
 import type { Exam, Range, Task, Unit } from './types.ts'
 
-/** 単元を削除するとき：その単元の未完了タスクを消し、試験の範囲からも外す */
+/** 単元を削除するとき：その単元の未完了タスクを消し、予定の範囲からも外す */
 export function deleteUnitChanges(unit: Unit, openTasks: Task[], exams: Exam[]): ChangeSet {
   const cs = emptyChangeSet()
   cs.deleteTasks = openTasks
@@ -14,11 +14,15 @@ export function deleteUnitChanges(unit: Unit, openTasks: Task[], exams: Exam[]):
   return cs
 }
 
-/** 暗記の範囲を削除するとき：その範囲の未完了タスクを消す */
-export function deleteRangeChanges(range: Range, openTasks: Task[]): ChangeSet {
+/** 暗記の範囲を削除するとき：その範囲の未完了タスクを消し、予定の範囲からも外す */
+export function deleteRangeChanges(range: Range, openTasks: Task[], exams: Exam[]): ChangeSet {
   const cs = emptyChangeSet()
   cs.deleteTasks = openTasks
     .filter((t) => t.status === 'open' && t.materialId === range.materialId && t.rangeId === range.id)
     .map((t) => t.id)
+  for (const exam of exams) {
+    const rangeRefs = exam.rangeRefs.filter((r) => !(r.materialId === range.materialId && r.rangeId === range.id))
+    if (rangeRefs.length !== exam.rangeRefs.length) cs.updateExams.push({ id: exam.id, patch: { rangeRefs } })
+  }
   return cs
 }

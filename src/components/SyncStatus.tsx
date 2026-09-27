@@ -24,7 +24,7 @@ export function SyncStatus() {
     <div className="mb-3 flex justify-center">
       <span
         className={`rounded-full px-3 py-1 text-xs font-medium ${
-          online ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-700'
+          online ? 'bg-amber-100 text-amber-800' : 'bg-stone-200 text-stone-700'
         }`}
       >
         {online ? '同期中…' : hasPendingWrites ? 'オフライン：つながったら同期します' : 'オフライン'}

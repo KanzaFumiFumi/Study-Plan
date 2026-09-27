@@ -30,12 +30,11 @@ export function ItemEditSheet({
   }
 
   function handleDelete() {
-    const note = item.kind === 'unit' ? '未完了のタスクも削除され、試験の範囲からも外れます。' : '未完了のタスクも削除されます。'
-    if (!window.confirm(`「${original}」を削除しますか？\n${note}`)) return
+    if (!window.confirm(`「${original}」を削除しますか？\n未完了のタスクも削除され、予定の範囲からも外れます。`)) return
     if (item.kind === 'unit') {
       deleteUnit(uid, item.unit.materialId, item.unit.id, deleteUnitChanges(item.unit, openTasks, exams))
     } else {
-      deleteRange(uid, item.range.materialId, item.range.id, deleteRangeChanges(item.range, openTasks))
+      deleteRange(uid, item.range.materialId, item.range.id, deleteRangeChanges(item.range, openTasks, exams))
     }
     toast(`${label}を削除しました`)
     onClose()

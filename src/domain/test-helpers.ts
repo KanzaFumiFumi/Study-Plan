@@ -55,7 +55,16 @@ export function makeTask(overrides: Partial<Task> = {}): Task {
 }
 
 export function makeExam(overrides: Partial<Exam> = {}): Exam {
-  return { id: 'e1', name: '期末考査', category: '定期考査', date: '2026-11-20', unitRefs: [], ...overrides }
+  return {
+    id: 'e1',
+    name: '期末考査',
+    category: '定期考査',
+    date: '2026-11-20',
+    unitRefs: [],
+    rangeRefs: [],
+    leadDays: null,
+    ...overrides,
+  }
 }
 
 /** Firestore の代わりに、ChangeSet をメモリ上の状態に適用する（操作を続けて行うシナリオのテスト用） */

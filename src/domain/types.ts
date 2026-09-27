@@ -52,13 +52,27 @@ export interface UnitRef {
   unitId: string
 }
 
-/** 試験（users/{uid}/exams/{id}） */
+export interface RangeRef {
+  materialId: string
+  rangeId: string
+}
+
+/**
+ * 予定（users/{uid}/exams/{id}）。試験だけでなく、大会・旅行・趣味など日付のある目標を登録する。
+ * 保存先とフィールド名は v0.1 の「試験」のまま（既存のデータをそのまま使うため）。
+ */
 export interface Exam {
   id: string
   name: string
+  /** 種類（定期考査・模試・資格・大会・旅行・趣味 など。自由入力） */
   category: string
   date: ISODate
+  /** 範囲に入れた周回系の単元 */
   unitRefs: UnitRef[]
+  /** 範囲に入れた暗記系の範囲（v0.2〜）。未開始なら開始する */
+  rangeRefs: RangeRef[]
+  /** 何日前までに仕上げるか（v0.2〜）。null なら設定の examLeadDays を使う */
+  leadDays: number | null
 }
 
 export type TaskType = 'first' | 'cycle' | 'exam' | 'redo' | 'memorize' | 'assignment'
@@ -106,7 +120,8 @@ export const DEFAULT_SETTINGS: Settings = {
 export const TASK_TYPE_LABEL: Record<TaskType, string> = {
   assignment: '課題',
   first: '1周目',
-  exam: '試験',
+  // 予定（試験・大会など）に向けて、周回中の単元を仕上げるタスク
+  exam: '仕上げ',
   memorize: '暗記',
   cycle: '周回',
   redo: '解き直し',

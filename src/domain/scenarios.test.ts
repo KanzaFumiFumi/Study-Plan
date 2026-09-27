@@ -73,7 +73,7 @@ describe('完成の条件', () => {
 
     for (const exam of [kimatsu, moshi]) {
       state = { ...state, exams: [...state.exams, exam] }
-      const { changes } = applyExamSave({ exam, units: state.units, materials: state.materials, openTasks: openTasksOf(state), settings, today: day0 })
+      const { changes } = applyExamSave({ exam, units: state.units, ranges: state.ranges, materials: state.materials, openTasks: openTasksOf(state), settings, today: day0 })
       state = applyChanges(state, changes)
     }
 

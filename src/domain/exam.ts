@@ -1,21 +1,30 @@
 import { emptyChangeSet, type ChangeSet } from './changeset.ts'
 import { addDays, daysBetween, maxDate, minDate } from './date.ts'
-import { openTaskForUnit, unitKey, unitTaskTitle } from './lookup.ts'
-import type { Exam, ISODate, Material, Settings, Task, Unit } from './types.ts'
+import { openTaskForRange, openTaskForUnit, rangeKey, unitKey, unitTaskTitle } from './lookup.ts'
+import { rangeTaskTitle } from './memorize.ts'
+import type { Exam, ISODate, Material, Range, Settings, Task, Unit } from './types.ts'
+
+// 予定（試験・大会・旅行・趣味など）。データ上は v0.1 の「試験」（exams / examIds）のまま扱う。
+
+/** 予定ごとの「何日前までに仕上げるか」。予定に指定がなければ設定の値 */
+export function leadDaysOf(exam: Pick<Exam, 'leadDays'>, settings: Settings): number {
+  return exam.leadDays ?? settings.examLeadDays
+}
 
 /**
- * 試験に向けたタスクの期限：試験日 - examLeadDays。
- * それが今日より前なら今日にする。試験日がすでに過ぎていれば null（タスクを作らない）。
+ * 予定に向けたタスクの期限：予定の日 - 何日前。
+ * それが今日より前なら今日にする。予定の日がすでに過ぎていれば null（タスクを作らない）。
  */
-export function examDueDate(examDate: ISODate, settings: Settings, today: ISODate): ISODate | null {
+export function examDueDate(examDate: ISODate, leadDays: number, today: ISODate): ISODate | null {
   if (examDate < today) return null
-  return maxDate(addDays(examDate, -settings.examLeadDays), today)
+  return maxDate(addDays(examDate, -leadDays), today)
 }
 
 export interface ExamSaveInput {
-  /** 保存する試験（新規なら採番済みのIDを入れておく） */
+  /** 保存する予定（新規なら採番済みのIDを入れておく） */
   exam: Exam
   units: Unit[]
+  ranges: Range[]
   materials: Material[]
   openTasks: Task[]
   settings: Settings
@@ -28,40 +37,49 @@ export interface ExamSaveResult {
   created: number
   /** 既存の未完了タスクにまとめた数 */
   merged: number
-  /** 範囲から外れて examIds から試験を外した数 */
+  /** 範囲から外れて examIds から予定を外した数 */
   detached: number
 }
 
 /**
- * 4.2 試験を登録・編集したとき
- * - 範囲内の単元：卒業済みは何もしない／未着手は first／周回中は exam を作る
- * - その単元に未完了タスクがあれば新しく作らず、examIds に試験を足して期限を早い方にする（重複をまとめる）
- * - 範囲から外れた単元：未完了タスクの examIds から試験を外すだけ（タスクは消さない・期限も変えない）
+ * 4.2 予定を登録・編集したとき
+ * 周回系の単元：
+ * - 卒業済みは何もしない／未着手は first／周回中は exam（仕上げ）を作る。期限は「予定の日 - 何日前」
+ * - その単元に未完了タスクがあれば新しく作らず、examIds に予定を足して期限を早い方にする（重複をまとめる）
+ * 暗記系の範囲（v0.2〜）：
+ * - 未完了の暗記タスクがあれば examIds に予定を足すだけ（復習の間隔は変えない）
+ * - なければ範囲を開始（または再開）し、今日が期限の暗記タスクを作る
+ * 範囲から外れた単元・範囲：未完了タスクの examIds から予定を外すだけ（タスクは消さない・期限も変えない）
  */
 export function applyExamSave(input: ExamSaveInput): ExamSaveResult {
-  const { exam, units, materials, openTasks, settings, today } = input
+  const { exam, units, ranges, materials, openTasks, settings, today } = input
   const changes = emptyChangeSet()
-  const inRange = new Set(exam.unitRefs.map(unitKey))
+  const unitsInRange = new Set(exam.unitRefs.map(unitKey))
+  const rangesInRange = new Set(exam.rangeRefs.map(rangeKey))
   let created = 0
   let merged = 0
   let detached = 0
 
   for (const task of openTasks) {
-    if (task.status !== 'open' || !task.examIds.includes(exam.id)) continue
-    const stillInRange = task.materialId && task.unitId && inRange.has(unitKey({ materialId: task.materialId, unitId: task.unitId }))
+    if (task.status !== 'open' || !task.examIds.includes(exam.id) || !task.materialId) continue
+    const stillInRange =
+      (task.unitId && unitsInRange.has(unitKey({ materialId: task.materialId, unitId: task.unitId }))) ||
+      (task.rangeId && rangesInRange.has(rangeKey({ materialId: task.materialId, rangeId: task.rangeId })))
     if (stillInRange) continue
     changes.updateTasks.push({ id: task.id, patch: { examIds: task.examIds.filter((id) => id !== exam.id) } })
     detached += 1
   }
 
-  const dueDate = examDueDate(exam.date, settings, today)
+  const dueDate = examDueDate(exam.date, leadDaysOf(exam, settings), today)
   if (dueDate === null) return { changes, created, merged, detached }
 
-  const seen = new Set<string>()
+  const withExam = (task: Task) => (task.examIds.includes(exam.id) ? task.examIds : [...task.examIds, exam.id])
+
+  const seenUnits = new Set<string>()
   for (const ref of exam.unitRefs) {
     const key = unitKey(ref)
-    if (seen.has(key)) continue
-    seen.add(key)
+    if (seenUnits.has(key)) continue
+    seenUnits.add(key)
 
     const unit = units.find((u) => u.materialId === ref.materialId && u.id === ref.unitId)
     const material = materials.find((m) => m.id === ref.materialId)
@@ -69,7 +87,7 @@ export function applyExamSave(input: ExamSaveInput): ExamSaveResult {
 
     const existing = openTaskForUnit(openTasks, ref)
     if (existing) {
-      const examIds = existing.examIds.includes(exam.id) ? existing.examIds : [...existing.examIds, exam.id]
+      const examIds = withExam(existing)
       const newDue = minDate(existing.dueDate, dueDate)
       if (examIds !== existing.examIds || newDue !== existing.dueDate) {
         changes.updateTasks.push({ id: existing.id, patch: { examIds, dueDate: newDue } })
@@ -88,10 +106,45 @@ export function applyExamSave(input: ExamSaveInput): ExamSaveResult {
       created += 1
     }
   }
+
+  const seenRanges = new Set<string>()
+  for (const ref of exam.rangeRefs) {
+    const key = rangeKey(ref)
+    if (seenRanges.has(key)) continue
+    seenRanges.add(key)
+
+    const range = ranges.find((r) => r.materialId === ref.materialId && r.id === ref.rangeId)
+    const material = materials.find((m) => m.id === ref.materialId)
+    if (!range || !material) continue
+
+    const existing = openTaskForRange(openTasks, ref)
+    if (existing) {
+      const examIds = withExam(existing)
+      if (examIds !== existing.examIds) changes.updateTasks.push({ id: existing.id, patch: { examIds } })
+      merged += 1
+    } else {
+      changes.updateRanges.push({
+        materialId: range.materialId,
+        rangeId: range.id,
+        patch: { started: true, nextReviewAt: today },
+      })
+      changes.createTasks.push({
+        type: 'memorize',
+        title: rangeTaskTitle(material, range),
+        materialId: range.materialId,
+        unitId: null,
+        rangeId: range.id,
+        examIds: [exam.id],
+        dueDate: today,
+      })
+      created += 1
+    }
+  }
+
   return { changes, created, merged, detached }
 }
 
-/** 試験を削除したとき：未完了タスクの examIds からその試験を外すだけ（タスクは消さない・期限も変えない） */
+/** 予定を削除したとき：未完了タスクの examIds からその予定を外すだけ（タスクは消さない・期限も変えない） */
 export function applyExamDelete(examId: string, openTasks: Task[]): ChangeSet {
   const changes = emptyChangeSet()
   for (const task of openTasks) {
@@ -102,7 +155,7 @@ export function applyExamDelete(examId: string, openTasks: Task[]): ChangeSet {
   return changes
 }
 
-/** 今日以降の試験を日付の近い順に（カウントダウン用） */
+/** 今日以降の予定を日付の近い順に（カウントダウン用） */
 export function upcomingExams(exams: Exam[], today: ISODate): { exam: Exam; daysLeft: number }[] {
   return exams
     .filter((e) => e.date >= today)

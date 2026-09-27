@@ -1,4 +1,4 @@
-import { daysBetween } from './date.ts'
+import { addDays, daysBetween } from './date.ts'
 import type { Exam, ISODate, Task, TaskType } from './types.ts'
 
 /** 4.7 今日の一覧の並び順（小さいほど上） */
@@ -17,6 +17,32 @@ export interface TodayItem {
   overdue: boolean
   /** 何日遅れているか（遅れていなければ 0） */
   overdueDays: number
+}
+
+/**
+ * これからのタスク（v0.2）：期限が明日から days 日後までの未完了タスクを、期限の早い順（同じ日は 4.7 の種類順）に。
+ * later は、それより先に期限があるタスクの数。
+ */
+export function upcomingTasks(
+  openTasks: Task[],
+  today: ISODate,
+  days: number,
+  hiddenMaterialIds: ReadonlySet<string> = new Set(),
+): { tasks: Task[]; later: number } {
+  const until = addDays(today, days)
+  const visible = openTasks.filter(
+    (t) => t.status === 'open' && t.dueDate > today && !(t.materialId && hiddenMaterialIds.has(t.materialId)),
+  )
+  const tasks = visible
+    .filter((t) => t.dueDate <= until)
+    .sort(
+      (a, b) =>
+        a.dueDate.localeCompare(b.dueDate) ||
+        TYPE_PRIORITY[a.type] - TYPE_PRIORITY[b.type] ||
+        a.createdAt - b.createdAt ||
+        a.id.localeCompare(b.id),
+    )
+  return { tasks, later: visible.length - tasks.length }
 }
 
 /** タスクに紐づく試験のうち、いちばん近い試験日（今日以降を優先。なければ過去の試験で最も早い日） */

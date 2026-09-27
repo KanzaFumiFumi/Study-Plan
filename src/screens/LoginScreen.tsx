@@ -47,7 +47,7 @@ export function LoginScreen() {
       <div className="flex flex-col items-center gap-3 text-center">
         <img src="/icon.svg" alt="" className="h-20 w-20" />
         <h1 className="text-2xl font-bold">学習ワークフロー</h1>
-        <p className="text-sm text-slate-500">問題集の周回と暗記のタスクを自動で作るToDo</p>
+        <p className="text-sm text-stone-500">問題集の周回と暗記のタスクを自動で作るToDo</p>
       </div>
       <Button onClick={handleLogin} disabled={busy} className="flex w-full max-w-xs items-center justify-center gap-2 py-3">
         <svg viewBox="0 0 24 24" className="h-5 w-5 rounded-full bg-white p-0.5" aria-hidden>

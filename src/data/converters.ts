@@ -7,6 +7,7 @@ import {
   type MemorizeResult,
   type NewTask,
   type Range,
+  type RangeRef,
   type Settings,
   type Task,
   type TaskResult,
@@ -78,15 +79,21 @@ export function toRange(id: string, materialId: string, d: DocumentData): Range 
 }
 
 export function toExam(id: string, d: DocumentData): Exam {
-  const refs: unknown[] = Array.isArray(d.unitRefs) ? d.unitRefs : []
+  const unitRefs: unknown[] = Array.isArray(d.unitRefs) ? d.unitRefs : []
+  // rangeRefs と leadDays は v0.2 で追加。v0.1 の予定にはないので既定値で補う
+  const rangeRefs: unknown[] = Array.isArray(d.rangeRefs) ? d.rangeRefs : []
   return {
     id,
     name: str(d.name),
     category: str(d.category),
     date: dateOrNull(d.date) ?? '1970-01-01',
-    unitRefs: refs
+    unitRefs: unitRefs
       .filter((r): r is UnitRef => !!r && typeof r === 'object' && 'materialId' in r && 'unitId' in r)
       .map((r) => ({ materialId: String(r.materialId), unitId: String(r.unitId) })),
+    rangeRefs: rangeRefs
+      .filter((r): r is RangeRef => !!r && typeof r === 'object' && 'materialId' in r && 'rangeId' in r)
+      .map((r) => ({ materialId: String(r.materialId), rangeId: String(r.rangeId) })),
+    leadDays: typeof d.leadDays === 'number' && Number.isInteger(d.leadDays) && d.leadDays >= 0 ? d.leadDays : null,
   }
 }
 

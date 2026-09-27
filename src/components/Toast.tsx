@@ -42,7 +42,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         >
           <p
             className={`max-w-md rounded-xl px-4 py-2.5 text-sm text-white shadow-lg ${
-              toast.tone === 'error' ? 'bg-red-600' : 'bg-slate-800'
+              toast.tone === 'error' ? 'bg-red-700' : 'bg-ink'
             }`}
           >
             {toast.message}

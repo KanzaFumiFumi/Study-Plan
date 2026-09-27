@@ -16,13 +16,19 @@ describe('単元・範囲の削除', () => {
     expect(changes.updateExams).toEqual([{ id: 'e1', patch: { unitRefs: [{ materialId: 'm1', unitId: 'u2' }] } }])
   })
 
-  test('範囲の未完了タスクを消す', () => {
+  test('範囲の未完了タスクを消し、予定の範囲からも外す', () => {
     const range = makeRange({ id: 'r1', materialId: 'm2' })
     const tasks = [
       makeTask({ id: 'k1', type: 'memorize', materialId: 'm2', unitId: null, rangeId: 'r1' }),
       makeTask({ id: 'k2', type: 'memorize', materialId: 'm2', unitId: null, rangeId: 'r2' }),
     ]
-    expect(deleteRangeChanges(range, tasks).deleteTasks).toEqual(['k1'])
+    const exams = [
+      makeExam({ id: 'trip', rangeRefs: [{ materialId: 'm2', rangeId: 'r1' }, { materialId: 'm2', rangeId: 'r2' }] }),
+      makeExam({ id: 'other', rangeRefs: [{ materialId: 'm2', rangeId: 'r2' }] }),
+    ]
+    const changes = deleteRangeChanges(range, tasks, exams)
+    expect(changes.deleteTasks).toEqual(['k1'])
+    expect(changes.updateExams).toEqual([{ id: 'trip', patch: { rangeRefs: [{ materialId: 'm2', rangeId: 'r2' }] } }])
   })
 })
 

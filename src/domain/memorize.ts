@@ -19,7 +19,7 @@ export function intervalDays(step: number, intervals: number[]): number {
 
 // ==========================================================
 
-function rangeTaskTitle(material: Pick<Material, 'name'>, range: Pick<Range, 'label'>): string {
+export function rangeTaskTitle(material: Pick<Material, 'name'>, range: Pick<Range, 'label'>): string {
   return `${material.name} ${range.label}`
 }
 

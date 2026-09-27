@@ -14,7 +14,8 @@ import { TaskBadge } from '../../components/TaskBadge.tsx'
 import { useToast } from '../../components/Toast.tsx'
 import { Button, inputClass } from '../../components/ui.tsx'
 
-const QUICK_MARKS = [0, 1, 2, 3, 4, 5]
+// 0〜9 はボタンで選べるので、ほとんどの場合キーボードは要らない
+const QUICK_MARKS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 /** 数字だけを受け付ける入力欄の値を整数に（空なら null） */
 function parseCount(text: string): number | null {
@@ -25,7 +26,7 @@ function parseCount(text: string): number | null {
 function CountInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-center text-sm font-medium text-slate-700">{label}</span>
+      <span className="mb-1 block text-center text-sm font-medium text-stone-700">{label}</span>
       <input
         className={`${inputClass} text-center text-lg tabular-nums`}
         inputMode="numeric"
@@ -142,33 +143,33 @@ export function CompleteSheet({ task, onClose }: { task: Task; onClose: () => vo
         <div>
           <div className="flex items-center gap-2">
             <TaskBadge type={task.type} />
-            <span className={`text-xs ${overdueDays > 0 ? 'font-semibold text-red-600' : 'text-slate-500'}`}>
+            <span className={`text-xs ${overdueDays > 0 ? 'font-semibold text-red-700' : 'text-stone-500'}`}>
               {overdueDays > 0 ? `${overdueDays}日遅れ` : `期限 ${formatShortDate(task.dueDate)}`}
             </span>
           </div>
           <p className="mt-2 font-semibold">{view.heading}</p>
-          {view.sub && <p className="text-sm text-slate-500">{view.sub}</p>}
-          {view.exams.length > 0 && <p className="mt-1 text-xs text-slate-500">試験：{view.exams.map((e) => e.name).join('・')}</p>}
+          {view.sub && <p className="text-sm text-stone-500">{view.sub}</p>}
+          {view.exams.length > 0 && <p className="mt-1 text-xs text-stone-500">予定：{view.exams.map((e) => e.name).join('・')}</p>}
         </div>
 
         {mode === 'unit' && unit && (
           <div>
-            <p className="mb-2 text-sm font-medium text-slate-700">
+            <p className="mb-2 text-sm font-medium text-stone-700">
               残っている印の数
               {unit.lapCount > 0 && (
-                <span className="ml-2 font-normal text-slate-500">
+                <span className="ml-2 font-normal text-stone-500">
                   前回：{unit.lapCount}周・残り{unit.remainingMarks ?? '?'}
                 </span>
               )}
             </p>
-            <div className="mb-3 grid grid-cols-6 gap-2">
+            <div className="mb-3 grid grid-cols-5 gap-2">
               {QUICK_MARKS.map((n) => (
                 <button
                   key={n}
                   type="button"
                   onClick={() => setMarks(String(n))}
                   className={`rounded-xl py-2.5 text-base font-semibold tabular-nums ring-1 ${
-                    marksValue === n ? 'bg-indigo-600 text-white ring-indigo-600' : 'bg-white text-slate-700 ring-slate-300'
+                    marksValue === n ? 'bg-ink text-white ring-ink' : 'bg-white text-stone-800 ring-stone-300'
                   }`}
                 >
                   {n}
@@ -180,7 +181,7 @@ export function CompleteSheet({ task, onClose }: { task: Task; onClose: () => vo
               inputMode="numeric"
               pattern="[0-9]*"
               aria-label="残っている印の数"
-              placeholder="6以上は入力"
+              placeholder="10以上はここに入力"
               value={marks}
               onChange={(e) => setMarks(e.target.value.replace(/[^0-9]/g, ''))}
             />
@@ -189,7 +190,7 @@ export function CompleteSheet({ task, onClose }: { task: Task; onClose: () => vo
 
         {mode === 'memorize' && (
           <div>
-            <p className="mb-2 text-sm text-slate-600">覚えた数を入力してください。</p>
+            <p className="mb-2 text-sm text-stone-600">覚えた数を入力してください。</p>
             <div className="grid grid-cols-3 gap-2">
               <CountInput label="知" value={known} onChange={setKnown} />
               <CountInput label="半知" value={half} onChange={setHalf} />
@@ -198,12 +199,12 @@ export function CompleteSheet({ task, onClose }: { task: Task; onClose: () => vo
           </div>
         )}
 
-        {mode === 'plain' && <p className="text-sm text-slate-600">この課題は単元に紐づいていないので、完了にするだけです。</p>}
+        {mode === 'plain' && <p className="text-sm text-stone-600">この課題は単元に紐づいていないので、完了にするだけです。</p>}
 
-        {preview && <p className="rounded-xl bg-indigo-50 px-3 py-2 text-sm text-indigo-800">{preview}</p>}
+        {preview && <p className="rounded-xl bg-stone-100 px-3 py-2 text-sm text-stone-700">{preview}</p>}
 
         <div className="pt-2 text-center">
-          <button type="button" onClick={handleDelete} className="text-sm text-red-600 underline-offset-2 active:underline">
+          <button type="button" onClick={handleDelete} className="text-sm text-red-700 underline-offset-2 active:underline">
             このタスクを削除
           </button>
         </div>

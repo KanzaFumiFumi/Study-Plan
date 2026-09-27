@@ -13,7 +13,7 @@ export interface TaskView {
   sub: string
 }
 
-/** タスクの表示用に、教材・単元・範囲・試験を引いてくる */
+/** タスクの表示用に、教材・単元・範囲・予定を引いてくる */
 export function viewTask(task: Task, data: Pick<DataValue, 'materials' | 'units' | 'ranges' | 'exams'>): TaskView {
   const material = data.materials.find((m) => m.id === task.materialId)
   const unit = task.unitId ? data.units.find((u) => u.materialId === task.materialId && u.id === task.unitId) : undefined

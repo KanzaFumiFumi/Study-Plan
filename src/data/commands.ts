@@ -74,14 +74,14 @@ export function saveSettings(uid: string, settings: Settings): void {
   w.commit()
 }
 
-// ---- 試験 ----
+// ---- 予定（試験・大会・旅行など。保存先は exams のまま） ----
 
-/** 新しい試験のIDを先に採番する（タスクの examIds に入れるため） */
+/** 新しい予定のIDを先に採番する（タスクの examIds に入れるため） */
 export function newExamId(uid: string): string {
   return doc(examsCol(uid)).id
 }
 
-/** 試験を保存する。cs は applyExamSave の結果（タスクの作成・まとめ・範囲外し） */
+/** 予定を保存する。cs は applyExamSave の結果（タスクの作成・まとめ・範囲外し） */
 export function saveExam(uid: string, exam: Exam, cs: ChangeSet): void {
   const w = new Writer()
   const { id, ...data } = exam
@@ -90,7 +90,7 @@ export function saveExam(uid: string, exam: Exam, cs: ChangeSet): void {
   w.commit()
 }
 
-/** 試験を削除する。cs は applyExamDelete の結果（未完了タスクの examIds から外す） */
+/** 予定を削除する。cs は applyExamDelete の結果（未完了タスクの examIds から外す） */
 export function deleteExam(uid: string, examId: string, cs: ChangeSet): void {
   const w = new Writer()
   w.delete(examDoc(uid, examId))
@@ -168,7 +168,7 @@ export function renameUnit(uid: string, materialId: string, unitId: string, name
   w.commit()
 }
 
-/** 単元を削除する。cs は deleteUnitChanges の結果（未完了タスクの削除・試験の範囲から外す） */
+/** 単元を削除する。cs は deleteUnitChanges の結果（未完了タスクの削除・予定の範囲から外す） */
 export function deleteUnit(uid: string, materialId: string, unitId: string, cs: ChangeSet): void {
   const w = new Writer()
   w.delete(unitDoc(uid, materialId, unitId))
@@ -182,7 +182,7 @@ export function renameRange(uid: string, materialId: string, rangeId: string, la
   w.commit()
 }
 
-/** 範囲を削除する。cs は deleteRangeChanges の結果（未完了タスクの削除） */
+/** 範囲を削除する。cs は deleteRangeChanges の結果（未完了タスクの削除・予定の範囲から外す） */
 export function deleteRange(uid: string, materialId: string, rangeId: string, cs: ChangeSet): void {
   const w = new Writer()
   w.delete(rangeDoc(uid, materialId, rangeId))

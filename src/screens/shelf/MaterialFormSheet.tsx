@@ -19,10 +19,13 @@ export function MaterialFormSheet({
   material,
   defaultKind,
   onClose,
+  onAdded,
 }: {
   material?: Material
   defaultKind: MaterialKind
   onClose: () => void
+  /** 追加したあと、その教材の画面を開くため */
+  onAdded?: (materialId: string) => void
 }) {
   const { uid, materials } = useData()
   const toast = useToast()
@@ -41,8 +44,9 @@ export function MaterialFormSheet({
       updateMaterial(uid, material.id, trimmed)
       toast('保存しました')
     } else {
-      addMaterial(uid, { ...trimmed, kind }, lines)
+      const id = addMaterial(uid, { ...trimmed, kind }, lines)
       toast(`「${trimmed.name}」を追加しました${lines.length ? `（${childLabel}${lines.length}件）` : ''}`)
+      onAdded?.(id)
     }
     onClose()
   }
@@ -86,25 +90,25 @@ export function MaterialFormSheet({
         {!material && (
           <>
             <fieldset>
-              <legend className="mb-1 text-sm font-medium text-slate-700">種類</legend>
+              <legend className="mb-1 text-sm font-medium text-stone-700">種類</legend>
               <div className="grid gap-2">
                 {KIND_OPTIONS.map((o) => (
                   <label
                     key={o.value}
                     className={`flex cursor-pointer gap-3 rounded-xl p-3 ring-1 ${
-                      kind === o.value ? 'bg-indigo-50 ring-indigo-400' : 'ring-slate-300'
+                      kind === o.value ? 'bg-stone-100 ring-2 ring-ink' : 'ring-stone-300'
                     }`}
                   >
                     <input
                       type="radio"
                       name="kind"
-                      className="mt-1 accent-indigo-600"
+                      className="mt-1 accent-ink"
                       checked={kind === o.value}
                       onChange={() => setKind(o.value)}
                     />
                     <span>
                       <span className="block text-sm font-semibold">{o.label}</span>
-                      <span className="block text-xs text-slate-500">{o.description}</span>
+                      <span className="block text-xs text-stone-500">{o.description}</span>
                     </span>
                   </label>
                 ))}
@@ -122,7 +126,7 @@ export function MaterialFormSheet({
         )}
 
         {material && (
-          <div className="rounded-xl bg-slate-50 p-3">
+          <div className="rounded-xl bg-stone-50 p-3">
             {material.archived ? (
               <Button variant="secondary" className="w-full" onClick={() => handleArchive(false)}>
                 アーカイブを解除
@@ -132,7 +136,7 @@ export function MaterialFormSheet({
                 <Button variant="secondary" className="w-full" onClick={() => handleArchive(true)}>
                   アーカイブする
                 </Button>
-                <p className="mt-2 text-xs text-slate-500">
+                <p className="mt-2 text-xs text-stone-500">
                   使い終わった教材を本棚の下にしまいます。タスクは「今日」に出なくなります（データは残り、いつでも戻せます）。
                 </p>
               </>

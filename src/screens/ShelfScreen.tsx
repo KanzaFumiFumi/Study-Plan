@@ -26,16 +26,16 @@ function MaterialCard({ material, onOpen }: { material: Material; onOpen: () => 
       <button
         type="button"
         onClick={onOpen}
-        className="w-full rounded-2xl bg-white p-4 text-left shadow-sm ring-1 ring-slate-200 active:bg-slate-50"
+        className="w-full rounded-2xl bg-white p-4 text-left ring-1 ring-stone-200 active:bg-stone-50"
       >
         <div className="flex items-start justify-between gap-2">
           <p className="font-semibold">{material.name}</p>
           {material.subject && <Badge>{material.subject}</Badge>}
         </div>
-        <p className="mt-1 text-xs text-slate-500">{summary}</p>
-        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+        <p className="mt-1 text-xs text-stone-500">{summary}</p>
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-stone-100">
           <div
-            className={`h-full rounded-full ${material.kind === 'cycle' ? 'bg-green-500' : 'bg-emerald-500'}`}
+            className={`h-full rounded-full ${'bg-ink'}`}
             style={{ width: `${Math.round(progress * 100)}%` }}
           />
         </div>
@@ -95,7 +95,7 @@ export function ShelfScreen() {
 
       {archived.length > 0 && (
         <details className="mt-6">
-          <summary className="cursor-pointer text-sm text-slate-500">アーカイブ済み（{archived.length}）</summary>
+          <summary className="cursor-pointer text-sm text-stone-500">アーカイブ済み（{archived.length}）</summary>
           <ul className="mt-3 space-y-3 opacity-70">
             {archived.map((m) => (
               <MaterialCard key={m.id} material={m} onOpen={() => setSelectedId(m.id)} />
@@ -104,7 +104,7 @@ export function ShelfScreen() {
         </details>
       )}
 
-      {adding && <MaterialFormSheet defaultKind={kind} onClose={() => setAdding(false)} />}
+      {adding && <MaterialFormSheet defaultKind={kind} onClose={() => setAdding(false)} onAdded={setSelectedId} />}
     </>
   )
 }
