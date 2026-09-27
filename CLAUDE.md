@@ -76,7 +76,9 @@ Windows で Node / Java を winget で入れた直後は、シェルの PATH を
 段階ごとに動く状態で日本語のメッセージでコミットする。ライブラリの書き方は実装前に公式ドキュメントで確認する。
 
 ## バージョン管理
-- リモートは GitHub（`origin`）、ブランチは `main`。
+- リモートは GitHub（`origin` = https://github.com/KanzaFumiFumi/Study-Plan.git）、ブランチは `main`。
+- コミットのメールは GitHub の noreply アドレス（`232763851+KanzaFumiFumi@users.noreply.github.com`）を使う。
+  個人のメールだと GitHub のメール保護（GH007）で push が拒否される。このリポジトリには `git config user.email` で設定済み。
 - バージョンは `package.json` の `version`・Git の注釈付きタグ `vX.Y.Z`・`CHANGELOG.md` の3つをそろえる。
   機能の追加・変更は 2つめ（0.1.0 → 0.2.0）、不具合の修正だけなら 3つめ（→ 0.1.1）を上げる。
 - リリースの手順：`CHANGELOG.md` に追記 → `package.json` の `version` を上げる → コミット →
