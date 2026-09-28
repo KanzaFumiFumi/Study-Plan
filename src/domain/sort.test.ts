@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { todayTasks, upcomingTasks } from './sort.ts'
+import { tasksByType, todayTasks, upcomingTasks } from './sort.ts'
 import { makeExam, makeTask } from './test-helpers.ts'
 import type { TaskType } from './types.ts'
 
@@ -78,5 +78,27 @@ describe('これからのタスク（v0.2）', () => {
     const { tasks: list, later } = upcomingTasks(tasks, today, 7, new Set(['archived']))
     expect(list.map((x) => x.id)).toEqual(['d1', 'd3-first', 'd3-cycle', 'd7'])
     expect(later).toBe(2)
+  })
+})
+
+describe('種類別のリスト（v0.3）', () => {
+  test('種類ごとに分け、期限の早い順（同じ期限なら作った順）。先の予定も含み、完了済みとアーカイブは除く', () => {
+    const tasks = [
+      t('c-late', 'cycle', '2026-10-10'),
+      t('c-over', 'cycle', '2026-09-20'),
+      t('c-today-2', 'cycle', today, { createdAt: 2 }),
+      t('c-today-1', 'cycle', today, { createdAt: 1 }),
+      t('m1', 'memorize', '2026-09-30'),
+      t('a1', 'assignment', '2026-10-01', { materialId: null }),
+      t('done', 'redo', today, { status: 'done' }),
+      t('hidden', 'first', today, { materialId: 'archived' }),
+    ]
+    const lists = tasksByType(tasks, new Set(['archived']))
+    expect(lists.cycle.map((x) => x.id)).toEqual(['c-over', 'c-today-1', 'c-today-2', 'c-late'])
+    expect(lists.memorize.map((x) => x.id)).toEqual(['m1'])
+    expect(lists.assignment.map((x) => x.id)).toEqual(['a1'])
+    expect(lists.redo).toEqual([])
+    expect(lists.first).toEqual([])
+    expect(lists.exam).toEqual([])
   })
 })

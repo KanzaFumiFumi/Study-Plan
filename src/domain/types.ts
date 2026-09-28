@@ -117,6 +117,18 @@ export const DEFAULT_SETTINGS: Settings = {
   memorizeIntervals: [1, 3, 7, 14, 30],
 }
 
+/** タスクの系統（リストの画面で、どのリストが周回系・暗記系か示すため）。課題はどちらでもない（単元に紐づけると周回の記録になる） */
+export type TaskGroup = 'cycle' | 'memorize' | 'assignment'
+
+export const TASK_GROUP: Record<TaskType, TaskGroup> = {
+  assignment: 'assignment',
+  first: 'cycle',
+  exam: 'cycle',
+  cycle: 'cycle',
+  redo: 'cycle',
+  memorize: 'memorize',
+}
+
 export const TASK_TYPE_LABEL: Record<TaskType, string> = {
   assignment: '課題',
   first: '1周目',

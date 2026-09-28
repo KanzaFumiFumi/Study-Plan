@@ -6,6 +6,7 @@ import { TAB_KEYS, TabBar, type TabKey } from './components/TabBar.tsx'
 import { ToastProvider } from './components/Toast.tsx'
 import { ExamsScreen } from './screens/ExamsScreen.tsx'
 import { GuideScreen } from './screens/GuideScreen.tsx'
+import { ListsScreen } from './screens/ListsScreen.tsx'
 import { SettingsScreen } from './screens/SettingsScreen.tsx'
 import { ShelfScreen } from './screens/ShelfScreen.tsx'
 import { TodayScreen } from './screens/TodayScreen.tsx'
@@ -23,6 +24,8 @@ function Screen({ tab, user, onBack }: { tab: TabKey; user: User; onBack: () => 
   switch (tab) {
     case 'today':
       return <TodayScreen />
+    case 'lists':
+      return <ListsScreen />
     case 'shelf':
       return <ShelfScreen />
     case 'exams':

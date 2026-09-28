@@ -7,7 +7,10 @@
 - テーマカラーは黒。落ち着いたモノトーン（`stone` 系の灰色）。色を使うのは「遅れ」（赤）と「残りの印」（琥珀）だけ。
 - テーマカラーと背景は `src/index.css` の `@theme`（`--color-ink` / `--color-paper`）で定義し、`bg-ink` `text-ink` などで使う。
   PWA の色は `vite.config.ts`・`index.html`・`public/icon.svg`（`npm run icons` で再生成）に同じ値を書いている。
-- 画面：今日・本棚・予定・設定（タブ）＋ 使い方（`GuideScreen`、今日の「?」と設定から開く。勉強の流れの図つき）。
+- 画面：今日・リスト・本棚・予定・設定（タブ）＋ 使い方（`GuideScreen`、今日の「?」と設定から開く。勉強の流れの図つき）。
+- リスト（v0.3〜、`ListsScreen`）：Trello のボードのように、未完了タスクを種類別のリストで横に並べる（`tasksByType`）。
+  系統（周回系・暗記系・提出物）は `TASK_GROUP` で決め、上のボタンの区切りと各リストの見出しに出す。
+  カードのタップは今日と同じ `CompleteSheet`、リスト下の追加は今日と同じ追加シートを使う（新しい保存処理は持たない）。
 
 ## 最重要の設計原則
 - **入力はToDoの「完了」操作1か所に集約する。** 完了すると単元・範囲の記録が更新され、次のタスクが自動で作られる。
@@ -41,7 +44,7 @@ Windows で Node / Java を winget で入れた直後は、シェルの PATH を
 - `src/domain/` … **Firestoreに依存しない純粋関数**（タスク生成ロジック）とテスト。UI・保存処理を入れない。
   - 関数は「今の状態＋入力＋今日の日付」を受け取り、`ChangeSet`（作る/更新する/消すタスク、単元・範囲・予定の更新）を返す。
 - `src/data/` … Firestore の読み書き。`onSnapshot` で全データをメモリに保持し、`ChangeSet` を `writeBatch` で保存する。
-- `src/screens/` … 今日・本棚・予定・設定・使い方・ログインの各画面。`src/components/` … 共通部品。
+- `src/screens/` … 今日・リスト・本棚・予定・設定・使い方・ログインの各画面。`src/components/` … 共通部品。
 - 「予定」は v0.1 の「試験」を広げたもの。**保存先・型・関数名は互換のため exam のまま**（`exams` コレクション、`Exam`、`examIds`、
   `ExamsScreen`、タブのキー `exams`）。画面の文言だけ「予定」。タスク種別 `exam` の表示名は「仕上げ」。
 

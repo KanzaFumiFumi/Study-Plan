@@ -45,6 +45,22 @@ export function upcomingTasks(
   return { tasks, later: visible.length - tasks.length }
 }
 
+/**
+ * 種類別のリスト（v0.3）：未完了タスクを種類ごとに分け、それぞれ期限の早い順（同じ期限なら作った順）に並べる。
+ * 今日より先のタスクも含む。hiddenMaterialIds（アーカイブした教材など）のタスクは出さない。
+ */
+export function tasksByType(openTasks: Task[], hiddenMaterialIds: ReadonlySet<string> = new Set()): Record<TaskType, Task[]> {
+  const lists: Record<TaskType, Task[]> = { assignment: [], first: [], exam: [], memorize: [], cycle: [], redo: [] }
+  for (const t of openTasks) {
+    if (t.status !== 'open' || (t.materialId && hiddenMaterialIds.has(t.materialId))) continue
+    lists[t.type].push(t)
+  }
+  for (const list of Object.values(lists)) {
+    list.sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.createdAt - b.createdAt || a.id.localeCompare(b.id))
+  }
+  return lists
+}
+
 /** タスクに紐づく試験のうち、いちばん近い試験日（今日以降を優先。なければ過去の試験で最も早い日） */
 export function nearestExamDate(task: Task, examsById: Map<string, Exam>, today: ISODate): ISODate | null {
   const dates = task.examIds.map((id) => examsById.get(id)?.date).filter((d): d is ISODate => !!d)
