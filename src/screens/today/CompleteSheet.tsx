@@ -4,6 +4,7 @@ import { useData } from '../../data/store.tsx'
 import { viewTask } from '../../data/taskView.ts'
 import { emptyChangeSet } from '../../domain/changeset.ts'
 import { completePlainTask, completeUnitTask } from '../../domain/cycle.ts'
+import { lapLabel } from '../../domain/labels.ts'
 import { addDays, daysBetween, formatShortDate } from '../../domain/date.ts'
 import { openTaskForRange, openTaskForUnit } from '../../domain/lookup.ts'
 import { completeMemorizeTask, intervalDays, nextStep } from '../../domain/memorize.ts'
@@ -78,7 +79,7 @@ export function CompleteSheet({ task, onClose }: { task: Task; onClose: () => vo
           graduated
             ? `「${unit.name}」が卒業しました`
             : nextTask
-              ? `完了。次の周回は ${formatShortDate(nextTask.dueDate)}`
+              ? `完了。次の${lapLabel(unit.lapCount + 2)}は ${formatShortDate(nextTask.dueDate)}`
               : '完了しました',
         )
       } else if (mode === 'memorize' && range && material) {
@@ -117,8 +118,8 @@ export function CompleteSheet({ task, onClose }: { task: Task; onClose: () => vo
   if (mode === 'unit' && unit && marksValue !== null) {
     if (marksValue === 0) preview = '印が0なので、この単元は卒業になります。'
     else if (openTaskForUnit(openTasks, { materialId: unit.materialId, unitId: unit.id }, task.id))
-      preview = 'この単元には別の未完了タスクがあるので、新しい周回タスクは作りません。'
-    else preview = `次の周回タスクを ${formatShortDate(addDays(today, settings.cycleIntervalDays))} に作ります。`
+      preview = 'この単元には別の未完了タスクがあるので、次のタスクは作りません。'
+    else preview = `次の${lapLabel(unit.lapCount + 2)}を ${formatShortDate(addDays(today, settings.cycleIntervalDays))} に作ります。`
   }
   if (mode === 'memorize' && range && memoTotal > 0) {
     const step = nextStep(range.step, memo)
@@ -142,7 +143,7 @@ export function CompleteSheet({ task, onClose }: { task: Task; onClose: () => vo
       <div className="space-y-5">
         <div>
           <div className="flex items-center gap-2">
-            <TaskBadge type={task.type} />
+            <TaskBadge task={task} unit={unit} />
             <span className={`text-xs ${overdueDays > 0 ? 'font-semibold text-red-700' : 'text-stone-500'}`}>
               {overdueDays > 0 ? `${overdueDays}日遅れ` : `期限 ${formatShortDate(task.dueDate)}`}
             </span>
@@ -158,7 +159,7 @@ export function CompleteSheet({ task, onClose }: { task: Task; onClose: () => vo
               残っている印の数
               {unit.lapCount > 0 && (
                 <span className="ml-2 font-normal text-stone-500">
-                  前回：{unit.lapCount}周・残り{unit.remainingMarks ?? '?'}
+                  前回：{lapLabel(unit.lapCount)}・残り{unit.remainingMarks ?? '?'}
                 </span>
               )}
             </p>

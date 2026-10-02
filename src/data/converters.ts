@@ -42,13 +42,16 @@ function taskResult(v: unknown): TaskResult | null {
 const TASK_TYPES: TaskType[] = ['first', 'cycle', 'exam', 'redo', 'memorize', 'assignment']
 
 export function toMaterial(id: string, d: DocumentData): Material {
+  const createdAt = millis(d.createdAt) ?? 0
   return {
     id,
     name: str(d.name),
     subject: str(d.subject),
-    kind: d.kind === 'memorize' ? 'memorize' : 'cycle',
+    kind: d.kind === 'memorize' || d.kind === 'review' ? d.kind : 'cycle',
     archived: d.archived === true,
-    createdAt: millis(d.createdAt) ?? 0,
+    // order は v0.4 で追加。v0.3 までの教材にはないので、作った時刻を並び順として使う
+    order: num(d.order, createdAt),
+    createdAt,
   }
 }
 
@@ -111,6 +114,7 @@ export function toTask(id: string, d: DocumentData): Task {
     completedAt: millis(d.completedAt),
     createdAt: millis(d.createdAt) ?? 0,
     result: taskResult(d.result),
+    plannedFor: dateOrNull(d.plannedFor),
   }
 }
 
@@ -133,6 +137,7 @@ export function newTaskData(task: NewTask, now: number): DocumentData {
     completedAt: null,
     createdAt: Timestamp.fromMillis(now),
     result: null,
+    plannedFor: null,
   }
 }
 

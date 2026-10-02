@@ -1,7 +1,7 @@
 import { Timestamp, doc, writeBatch, type DocumentData, type DocumentReference, type WriteBatch } from 'firebase/firestore'
 import { db } from '../firebase.ts'
 import type { ChangeSet } from '../domain/changeset.ts'
-import type { Exam, MaterialKind, Settings } from '../domain/types.ts'
+import { hasUnits, type Exam, type MaterialKind, type Settings } from '../domain/types.ts'
 import { newTaskData, taskPatchData } from './converters.ts'
 import { reportDataError } from './errors.ts'
 import {
@@ -118,7 +118,7 @@ const newRangeData = (label: string, order: number) => ({
   lastResult: null,
 })
 
-/** 教材を追加する。lines は単元名（周回系）または範囲名（暗記系）。追加した教材のIDを返す */
+/** 教材を追加する。lines は単元名（周回系・復習系）または範囲名（暗記系）。追加した教材のIDを返す */
 export function addMaterial(
   uid: string,
   input: { name: string; subject: string; kind: MaterialKind },
@@ -126,10 +126,19 @@ export function addMaterial(
 ): string {
   const w = new Writer()
   const ref = doc(materialsCol(uid))
-  w.set(ref, { ...input, archived: false, createdAt: Timestamp.now() })
+  const now = Timestamp.now()
+  // 並び順は作った時刻（並べ替えた教材は 0, 1, 2… になるので、新しい教材はその下に入る）
+  w.set(ref, { ...input, archived: false, order: now.toMillis(), createdAt: now })
   addChildren(w, uid, ref.id, input.kind, lines, 0)
   w.commit()
   return ref.id
+}
+
+/** 本棚の並び順を保存する（v0.4〜）。orderedIds の順に order = 0, 1, 2… をつける */
+export function reorderMaterials(uid: string, orderedIds: string[]): void {
+  const w = new Writer()
+  orderedIds.forEach((id, i) => w.update(materialDoc(uid, id), { order: i }))
+  w.commit()
 }
 
 export function updateMaterial(
@@ -144,7 +153,7 @@ export function updateMaterial(
 
 function addChildren(w: Writer, uid: string, materialId: string, kind: MaterialKind, lines: string[], startOrder: number) {
   lines.forEach((line, i) => {
-    if (kind === 'cycle') w.set(doc(unitsCol(uid, materialId)), newUnitData(line, startOrder + i))
+    if (hasUnits(kind)) w.set(doc(unitsCol(uid, materialId)), newUnitData(line, startOrder + i))
     else w.set(doc(rangesCol(uid, materialId)), newRangeData(line, startOrder + i))
   })
 }

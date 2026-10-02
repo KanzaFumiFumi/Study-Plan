@@ -1,6 +1,18 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { onSnapshot, query, where, type SnapshotMetadata } from 'firebase/firestore'
-import { DEFAULT_SETTINGS, type Exam, type Material, type Range, type Settings, type Task, type Unit } from '../domain/types.ts'
+import { Timestamp, onSnapshot, query, where, type SnapshotMetadata } from 'firebase/firestore'
+import { jstStartOfDayMs } from '../domain/date.ts'
+import { sortMaterials } from '../domain/shelf.ts'
+import {
+  DEFAULT_SETTINGS,
+  hasUnits,
+  type Exam,
+  type Material,
+  type Range,
+  type Settings,
+  type Task,
+  type Unit,
+} from '../domain/types.ts'
+import { useToday } from '../hooks/useToday.ts'
 import { toExam, toMaterial, toRange, toSettings, toTask, toUnit } from './converters.ts'
 import { reportDataError } from './errors.ts'
 import { examsCol, materialsCol, rangesCol, settingsDoc, tasksCol, unitsCol } from './paths.ts'
@@ -13,8 +25,10 @@ export interface DataValue {
   units: Unit[]
   ranges: Range[]
   exams: Exam[]
-  /** 未完了のタスクだけ（完了済みは JSON 書き出しのときだけ読む） */
+  /** 未完了のタスク */
   openTasks: Task[]
+  /** 今日（日本時間）完了したタスク（v0.4〜、今日のチェックリストに済みとして出す）。それ以前の完了済みは JSON 書き出しのときだけ読む */
+  doneToday: Task[]
   settings: Settings
   /** サーバーに届いていない書き込みがある（オフラインなど） */
   hasPendingWrites: boolean
@@ -40,7 +54,9 @@ export function DataProvider({ uid, children }: { uid: string; children: ReactNo
   const [rangesByMaterial, setRangesByMaterial] = useState<Record<string, Range[]>>({})
   const [exams, setExams] = useState<Exam[] | null>(null)
   const [openTasks, setOpenTasks] = useState<Task[] | null>(null)
+  const [doneToday, setDoneToday] = useState<Task[]>([])
   const [settings, setSettings] = useState<Settings | null>(null)
+  const today = useToday()
   const [pending, setPending] = useState<Record<string, boolean>>({})
 
   const trackPending = (key: string, metadata: SnapshotMetadata) =>
@@ -53,7 +69,7 @@ export function DataProvider({ uid, children }: { uid: string; children: ReactNo
         materialsCol(uid),
         opts,
         (snap) => {
-          setMaterials(snap.docs.map((d) => toMaterial(d.id, d.data())).sort((a, b) => a.createdAt - b.createdAt))
+          setMaterials(sortMaterials(snap.docs.map((d) => toMaterial(d.id, d.data()))))
           trackPending('materials', snap.metadata)
         },
         reportDataError,
@@ -88,6 +104,17 @@ export function DataProvider({ uid, children }: { uid: string; children: ReactNo
     ]
     return () => unsubs.forEach((unsub) => unsub())
   }, [uid])
+
+  // 今日完了したタスク（日付が変わったら張り直す）。completedAt の範囲だけで絞るので複合インデックスは要らない
+  useEffect(
+    () =>
+      onSnapshot(
+        query(tasksCol(uid), where('completedAt', '>=', Timestamp.fromMillis(jstStartOfDayMs(today)))),
+        (snap) => setDoneToday(snap.docs.map((d) => toTask(d.id, d.data())).sort((a, b) => (a.completedAt ?? 0) - (b.completedAt ?? 0))),
+        reportDataError,
+      ),
+    [uid, today],
+  )
 
   // 単元・範囲は教材ごとのサブコレクションなので、教材の一覧に合わせて購読を張り直す
   const materialKeys = materials?.map((m) => `${m.id}:${m.kind}`).join(',') ?? ''
@@ -141,14 +168,15 @@ export function DataProvider({ uid, children }: { uid: string; children: ReactNo
       uid,
       loading: !initialLoaded,
       materials: mats,
-      units: mats.flatMap((m) => (m.kind === 'cycle' ? (unitsByMaterial[m.id] ?? []) : [])),
+      units: mats.flatMap((m) => (hasUnits(m.kind) ? (unitsByMaterial[m.id] ?? []) : [])),
       ranges: mats.flatMap((m) => (m.kind === 'memorize' ? (rangesByMaterial[m.id] ?? []) : [])),
       exams: exams ?? [],
       openTasks: openTasks ?? [],
+      doneToday,
       settings: settings ?? DEFAULT_SETTINGS,
       hasPendingWrites: Object.values(pending).some(Boolean),
     }
-  }, [uid, initialLoaded, materials, unitsByMaterial, rangesByMaterial, exams, openTasks, settings, pending])
+  }, [uid, initialLoaded, materials, unitsByMaterial, rangesByMaterial, exams, openTasks, doneToday, settings, pending])
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>
 }

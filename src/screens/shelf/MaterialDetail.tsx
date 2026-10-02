@@ -5,7 +5,8 @@ import { formatShortDate } from '../../domain/date.ts'
 import { openTaskForRange, openTaskForUnit } from '../../domain/lookup.ts'
 import { startRange } from '../../domain/memorize.ts'
 import { useToast } from '../../components/Toast.tsx'
-import { TASK_TYPE_LABEL, type Material, type Range, type Task, type Unit } from '../../domain/types.ts'
+import { taskLabel } from '../../domain/labels.ts'
+import { MATERIAL_KIND_LABEL, hasUnits, type Material, type Range, type Task, type Unit } from '../../domain/types.ts'
 import { useToday } from '../../hooks/useToday.ts'
 import { UnitStatus } from '../../components/UnitStatus.tsx'
 import { BackButton, Badge, Button, EmptyState, ScreenTitle } from '../../components/ui.tsx'
@@ -15,12 +16,12 @@ import { MaterialFormSheet } from './MaterialFormSheet.tsx'
 
 type EditItem = { kind: 'unit'; unit: Unit } | { kind: 'range'; range: Range }
 
-function NextTask({ task, today }: { task: Task | undefined; today: string }) {
+function NextTask({ task, unit, today }: { task: Task | undefined; unit?: Unit; today: string }) {
   if (!task) return null
   const overdue = task.dueDate < today
   return (
     <p className={`mt-0.5 text-xs ${overdue ? 'text-red-600' : 'text-stone-500'}`}>
-      次：{formatShortDate(task.dueDate)} {TASK_TYPE_LABEL[task.type]}
+      次：{formatShortDate(task.dueDate)} {taskLabel(task, unit)}
       {overdue && '（遅れ）'}
     </p>
   )
@@ -34,7 +35,8 @@ export function MaterialDetail({ material, onBack }: { material: Material; onBac
   const [bulkAdding, setBulkAdding] = useState(false)
   const [editItem, setEditItem] = useState<EditItem | null>(null)
 
-  const isCycle = material.kind === 'cycle'
+  // 周回系・復習系は単元、暗記系は範囲
+  const isCycle = hasUnits(material.kind)
   const myUnits = units.filter((u) => u.materialId === material.id)
   const myRanges = ranges.filter((r) => r.materialId === material.id)
   const items: { order: number }[] = isCycle ? myUnits : myRanges
@@ -74,7 +76,7 @@ export function MaterialDetail({ material, onBack }: { material: Material; onBac
       </ScreenTitle>
       <div className="-mt-2 mb-4 flex flex-wrap items-center gap-1.5">
         {material.subject && <Badge>{material.subject}</Badge>}
-        <Badge tone="outline">{isCycle ? '周回系' : '暗記系'}</Badge>
+        <Badge tone="outline">{MATERIAL_KIND_LABEL[material.kind]}</Badge>
         {material.archived && <Badge tone="warn">アーカイブ済み</Badge>}
       </div>
 
@@ -101,7 +103,7 @@ export function MaterialDetail({ material, onBack }: { material: Material; onBac
                   >
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium">{unit.name}</p>
-                      <NextTask task={openTaskForUnit(openTasks, { materialId: unit.materialId, unitId: unit.id })} today={today} />
+                      <NextTask task={openTaskForUnit(openTasks, { materialId: unit.materialId, unitId: unit.id })} unit={unit} today={today} />
                     </div>
                     <UnitStatus unit={unit} />
                   </button>

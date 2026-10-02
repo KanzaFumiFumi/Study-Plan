@@ -5,7 +5,7 @@ import { DEFAULT_SETTINGS, type Exam, type Material, type Range, type Settings, 
 export const settings: Settings = DEFAULT_SETTINGS
 
 export function makeMaterial(overrides: Partial<Material> = {}): Material {
-  return { id: 'm1', name: '青チャート', subject: '数学', kind: 'cycle', archived: false, createdAt: 0, ...overrides }
+  return { id: 'm1', name: '青チャート', subject: '数学', kind: 'cycle', archived: false, order: 0, createdAt: 0, ...overrides }
 }
 
 export function makeUnit(overrides: Partial<Unit> = {}): Unit {
@@ -50,6 +50,7 @@ export function makeTask(overrides: Partial<Task> = {}): Task {
     completedAt: null,
     createdAt: 0,
     result: null,
+    plannedFor: null,
     ...overrides,
   }
 }
@@ -87,7 +88,7 @@ export function applyChanges(state: State, cs: ChangeSet, now = 0): State {
     cs.updateTasks,
   )
   for (const t of cs.createTasks) {
-    tasks.push({ ...t, id: `new${++idSeq}`, status: 'open', completedAt: null, createdAt: now, result: null })
+    tasks.push({ ...t, id: `new${++idSeq}`, status: 'open', completedAt: null, createdAt: now, result: null, plannedFor: null })
   }
 
   const units = state.units.map((u) =>

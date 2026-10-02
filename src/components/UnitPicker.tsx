@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import { useData } from '../data/store.tsx'
 import { rangeKey, unitKey } from '../domain/lookup.ts'
-import type { Material, Range, Unit } from '../domain/types.ts'
+import { formatShortDate } from '../domain/date.ts'
+import { MATERIAL_KIND_LABEL, hasUnits, type Material, type Range, type Task, type Unit } from '../domain/types.ts'
 import { UnitStatus } from './UnitStatus.tsx'
 import { Badge, EmptyState } from './ui.tsx'
 
@@ -39,7 +40,10 @@ function GroupedPicker({
         return (
           <details key={material.id} open className="overflow-hidden rounded-xl bg-white ring-1 ring-stone-200">
             <summary className="flex cursor-pointer items-center gap-2 bg-stone-50 px-3 py-2 text-sm font-semibold">
-              <span className="min-w-0 flex-1 truncate">{material.name}</span>
+              <span className="min-w-0 flex-1 truncate">
+                {material.name}
+                <span className="ml-1.5 text-[11px] font-normal text-stone-500">{MATERIAL_KIND_LABEL[material.kind]}</span>
+              </span>
               {count > 0 && <span className="text-xs font-medium text-ink">{count}件選択</span>}
               <button
                 type="button"
@@ -76,14 +80,14 @@ function GroupedPicker({
 }
 
 /**
- * 教材ごとに単元をチェックボックスで選ぶ（1周目・解き直し・予定の範囲で共通）。
+ * 教材ごとに単元をチェックボックスで選ぶ（一周目・解き直し・予定の範囲で共通）。周回系と復習系の教材が対象。
  * selected は unitKey（materialId/unitId）の集合。
  */
 export function UnitPicker({
   selected,
   onChange,
   filter = () => true,
-  emptyMessage = '選べる単元がありません。本棚で周回系の教材と単元を登録してください。',
+  emptyMessage = '選べる単元がありません。本棚で周回系・復習系の教材と単元を登録してください。',
   alwaysShowMaterialIds = [],
 }: {
   selected: ReadonlySet<string>
@@ -95,7 +99,7 @@ export function UnitPicker({
 }) {
   const { materials, units } = useData()
   const groups = materials
-    .filter((m) => m.kind === 'cycle' && (!m.archived || alwaysShowMaterialIds.includes(m.id)))
+    .filter((m) => hasUnits(m.kind) && (!m.archived || alwaysShowMaterialIds.includes(m.id)))
     .map((material) => ({
       material,
       items: units
@@ -108,11 +112,14 @@ export function UnitPicker({
   return <GroupedPicker groups={groups} selected={selected} onChange={onChange} />
 }
 
-function rangeStatus(range: Range): ReactNode {
+/** 範囲の状態。次の暗記タスクがあれば、その日付を出す（カレンダーで割り当てるときに分かるように） */
+function rangeStatus(range: Range, openTasks: Task[]): ReactNode {
+  const next = openTasks.find((t) => t.materialId === range.materialId && t.rangeId === range.id)
+  if (next) return <Badge tone="outline">次：{formatShortDate(next.dueDate)}</Badge>
   return range.started ? <Badge tone="outline">復習中</Badge> : <Badge>未開始</Badge>
 }
 
-/** 教材ごとに暗記の範囲をチェックボックスで選ぶ（予定の範囲）。selected は rangeKey の集合 */
+/** 教材ごとに暗記の範囲をチェックボックスで選ぶ（予定の範囲・カレンダーの割り当て）。selected は rangeKey の集合 */
 export function RangePicker({
   selected,
   onChange,
@@ -122,14 +129,18 @@ export function RangePicker({
   onChange: (next: Set<string>) => void
   alwaysShowMaterialIds?: string[]
 }) {
-  const { materials, ranges } = useData()
+  const { materials, ranges, openTasks } = useData()
   const groups = materials
     .filter((m) => m.kind === 'memorize' && (!m.archived || alwaysShowMaterialIds.includes(m.id)))
     .map((material) => ({
       material,
       items: ranges
         .filter((r) => r.materialId === material.id)
-        .map((r) => ({ key: rangeKey({ materialId: r.materialId, rangeId: r.id }), label: r.label, status: rangeStatus(r) })),
+        .map((r) => ({
+          key: rangeKey({ materialId: r.materialId, rangeId: r.id }),
+          label: r.label,
+          status: rangeStatus(r, openTasks),
+        })),
     }))
     .filter((g) => g.items.length > 0)
 

@@ -3,7 +3,7 @@ import { minDate } from './date.ts'
 import { openTaskForUnit, unitKey, unitTaskTitle } from './lookup.ts'
 import type { ISODate, Material, Task, TaskType, Unit } from './types.ts'
 
-// 手動でタスクを足す操作（4.3 授業の1周目 / 4.4 解き直し / 4.5 学校課題）。
+// 手動でタスクを足す操作（4.3 授業の一周目 / 4.4 解き直し / 4.5 学校課題）。
 // どの作り方でも「1単元につき未完了タスクは1つ」にそろえる。
 // すでに未完了タスクがある単元は、新しく作らず既存タスクの期限を早い方にする。
 
@@ -52,7 +52,7 @@ function addUnitTasks(type: TaskType, targets: UnitTarget[], openTasks: Task[], 
   return { changes, created, merged }
 }
 
-/** 4.3 授業の1周目：選んだ単元ごとに、今日が期限の first タスクを作る */
+/** 4.3 授業の一周目：選んだ単元（周回系・復習系）ごとに、今日が期限の first タスクを作る */
 export function addFirstLaps(input: { targets: UnitTarget[]; openTasks: Task[]; today: ISODate }): ManualResult {
   return addUnitTasks('first', input.targets, input.openTasks, input.today)
 }
@@ -60,6 +60,17 @@ export function addFirstLaps(input: { targets: UnitTarget[]; openTasks: Task[]; 
 /** 4.4 解き直し：選んだ単元ごとに、指定した期限の redo タスクを作る（卒業済みの単元も選べる） */
 export function addRedos(input: { targets: UnitTarget[]; openTasks: Task[]; dueDate: ISODate }): ManualResult {
   return addUnitTasks('redo', input.targets, input.openTasks, input.dueDate)
+}
+
+/**
+ * 「今日やる」の印（v0.4〜）。on なら今日の日付を入れ、外すなら消す。期限は変えない。
+ * 印は「今日」の日付のときだけ効くので、次の日には自然に消える。
+ */
+export function setPlannedForToday(task: Task, today: ISODate, on: boolean): ChangeSet {
+  const changes = emptyChangeSet()
+  const plannedFor = on ? today : null
+  if (task.plannedFor !== plannedFor) changes.updateTasks.push({ id: task.id, patch: { plannedFor } })
+  return changes
 }
 
 /**

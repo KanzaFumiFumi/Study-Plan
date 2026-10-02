@@ -1,7 +1,22 @@
 /** 日本時間の日付。`YYYY-MM-DD` 形式の文字列（文字列の大小比較で日付の前後が判定できる） */
 export type ISODate = string
 
-export type MaterialKind = 'cycle' | 'memorize'
+/**
+ * 教材の種類。周回系（問題集など）・復習系（v0.4〜。教科書・ノートなど）・暗記系（単語帳など）。
+ * 復習系は周回系と同じ仕組み（単元ごとに残りの印の数を記録する）で、本棚の分類だけが違う。
+ */
+export type MaterialKind = 'cycle' | 'review' | 'memorize'
+
+export const MATERIAL_KIND_LABEL: Record<MaterialKind, string> = {
+  cycle: '周回系',
+  review: '復習系',
+  memorize: '暗記系',
+}
+
+/** 単元（units）を持つ種類か。周回系と復習系は単元、暗記系は範囲（ranges） */
+export function hasUnits(kind: MaterialKind): boolean {
+  return kind !== 'memorize'
+}
 
 /** 教材（users/{uid}/materials/{id}） */
 export interface Material {
@@ -10,11 +25,13 @@ export interface Material {
   subject: string
   kind: MaterialKind
   archived: boolean
+  /** 本棚での並び順（v0.4〜。小さいほど上）。v0.3 までの教材にはないので createdAt で補う */
+  order: number
   /** ミリ秒（Firestore では Timestamp） */
   createdAt: number
 }
 
-/** 周回系の単元（materials/{materialId}/units/{id}）。materialId はパスから補う */
+/** 周回系・復習系の単元（materials/{materialId}/units/{id}）。materialId はパスから補う */
 export interface Unit {
   id: string
   materialId: string
@@ -99,6 +116,8 @@ export interface Task {
   /** ミリ秒（Firestore では Timestamp）。仕様への追加：同順位の並びを安定させるため */
   createdAt: number
   result: TaskResult | null
+  /** 「今日やる」と選んだ日（v0.4〜）。この日が今日なら、期限が先でも今日のチェックリストに出す。期限は変えない */
+  plannedFor: ISODate | null
 }
 
 /** 新しく作るタスク。id・createdAt・status などは保存時に data 層が補う */
@@ -117,21 +136,13 @@ export const DEFAULT_SETTINGS: Settings = {
   memorizeIntervals: [1, 3, 7, 14, 30],
 }
 
-/** タスクの系統（リストの画面で、どのリストが周回系・暗記系か示すため）。課題はどちらでもない（単元に紐づけると周回の記録になる） */
-export type TaskGroup = 'cycle' | 'memorize' | 'assignment'
-
-export const TASK_GROUP: Record<TaskType, TaskGroup> = {
-  assignment: 'assignment',
-  first: 'cycle',
-  exam: 'cycle',
-  cycle: 'cycle',
-  redo: 'cycle',
-  memorize: 'memorize',
-}
-
+/**
+ * タスクの種類の名前。周回系・復習系の単元のタスク（first / cycle / exam）は、
+ * 画面では「何周目か」で表示する（labels.ts の taskLabel）。ここの名前は単元が見つからないときの予備。
+ */
 export const TASK_TYPE_LABEL: Record<TaskType, string> = {
   assignment: '課題',
-  first: '1周目',
+  first: '一周目',
   // 予定（試験・大会など）に向けて、周回中の単元を仕上げるタスク
   exam: '仕上げ',
   memorize: '暗記',

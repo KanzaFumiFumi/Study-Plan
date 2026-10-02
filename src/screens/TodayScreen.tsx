@@ -1,13 +1,16 @@
 import { useState } from 'react'
+import { saveChangeSet } from '../data/commands.ts'
 import { useData } from '../data/store.tsx'
 import { viewTask } from '../data/taskView.ts'
+import { completePlainTask } from '../domain/cycle.ts'
 import { formatShortDate } from '../domain/date.ts'
 import { upcomingExams } from '../domain/exam.ts'
-import { todayTasks, upcomingTasks } from '../domain/sort.ts'
+import { todayTasks, upcomingTasks, type TodayItem } from '../domain/sort.ts'
 import type { Task } from '../domain/types.ts'
 import { useNav } from '../hooks/useNav.ts'
 import { useToday } from '../hooks/useToday.ts'
 import { TaskBadge } from '../components/TaskBadge.tsx'
+import { useToast } from '../components/Toast.tsx'
 import { Badge, EmptyState, ScreenTitle } from '../components/ui.tsx'
 import { AddAssignmentSheet, AddFirstLapSheet, AddRedoSheet } from './today/AddTaskSheets.tsx'
 import { CompleteSheet } from './today/CompleteSheet.tsx'
@@ -75,7 +78,7 @@ function StartGuide() {
   const nav = useNav()
   const steps: { text: string; action?: { label: string; onClick: () => void } }[] = [
     { text: '本棚に、問題集や単語帳を登録する（単元は目次を貼り付けてまとめて登録）', action: { label: '本棚へ', onClick: () => nav('shelf') } },
-    { text: '授業で解いたら「＋授業の1周目」で今日のタスクにして、完了する' },
+    { text: '授業で解いたら「＋授業の一周目」で今日のタスクにして、完了する' },
     { text: '試験・大会・旅行などの日は「予定」に登録する', action: { label: '予定へ', onClick: () => nav('exams') } },
   ]
   return (
@@ -107,44 +110,86 @@ function StartGuide() {
   )
 }
 
-function TaskRow({
-  task,
-  overdueDays = 0,
-  compact = false,
-  onOpen,
-}: {
-  task: Task
-  overdueDays?: number
-  compact?: boolean
-  onOpen: () => void
-}) {
+/** これからのタスクの1行（タップで完了シート） */
+function TaskRow({ task, onOpen }: { task: Task; onOpen: () => void }) {
   const data = useData()
   const view = viewTask(task, data)
-  const notes = [
-    view.sub,
-    view.exams.length ? `予定：${view.exams.map((e) => e.name).join('・')}` : '',
-    task.type === 'assignment' && overdueDays === 0 && !compact ? `締切 ${formatShortDate(task.dueDate)}` : '',
-  ].filter(Boolean)
+  const notes = [view.sub, view.exams.length ? `予定：${view.exams.map((e) => e.name).join('・')}` : ''].filter(Boolean)
 
   return (
     <li>
       <button
         type="button"
         onClick={onOpen}
-        className={`flex w-full items-center gap-3 rounded-2xl bg-white text-left ring-1 ring-stone-200 active:bg-stone-50 ${
-          compact ? 'px-3.5 py-2.5' : 'p-3.5'
-        }`}
+        className="flex w-full items-center gap-3 rounded-2xl bg-white px-3.5 py-2.5 text-left ring-1 ring-stone-200 active:bg-stone-50"
       >
         <span className="h-6 w-6 shrink-0 rounded-full ring-2 ring-stone-300" aria-hidden />
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <TaskBadge type={task.type} />
-            {overdueDays > 0 && <Badge tone="danger">{overdueDays}日遅れ</Badge>}
-          </div>
-          <p className={`mt-1 leading-snug ${compact ? 'text-sm' : 'font-medium'}`}>{view.heading}</p>
+          <TaskBadge task={task} unit={view.unit} />
+          <p className="mt-1 text-sm leading-snug">{view.heading}</p>
           {notes.length > 0 && <p className="mt-0.5 truncate text-xs text-stone-500">{notes.join('　')}</p>}
         </div>
       </button>
+    </li>
+  )
+}
+
+/** チェックリストの四角 */
+function CheckBox({ checked }: { checked: boolean }) {
+  return (
+    <span
+      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${
+        checked ? 'bg-ink text-white' : 'bg-white ring-2 ring-stone-300'
+      }`}
+      aria-hidden
+    >
+      {checked && (
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={3}>
+          <path d="m5 12 5 5 9-10" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
+    </span>
+  )
+}
+
+/** 今日のチェックリストの1行。四角を押すと完了（数字が要るものは入力シート）。行を押すとシートを開く */
+function ChecklistRow({ item, onOpen, onCheck }: { item: TodayItem; onOpen: () => void; onCheck: () => void }) {
+  const data = useData()
+  const { task, overdueDays, planned } = item
+  const view = viewTask(task, data)
+  const notes = [
+    view.sub,
+    view.exams.length ? `予定：${view.exams.map((e) => e.name).join('・')}` : '',
+    task.type === 'assignment' && overdueDays === 0 && !planned ? `締切 ${formatShortDate(task.dueDate)}` : '',
+    planned ? `期限 ${formatShortDate(task.dueDate)}` : '',
+  ].filter(Boolean)
+
+  return (
+    <li className="flex items-center">
+      <button type="button" onClick={onCheck} aria-label={`「${view.heading}」を完了する`} className="py-3.5 pr-2 pl-4 active:opacity-60">
+        <CheckBox checked={false} />
+      </button>
+      <button type="button" onClick={onOpen} className="min-w-0 flex-1 py-3 pr-4 pl-1 text-left active:bg-stone-50">
+        <span className="flex flex-wrap items-center gap-1.5">
+          <TaskBadge task={task} unit={view.unit} />
+          {overdueDays > 0 && <Badge tone="danger">{overdueDays}日遅れ</Badge>}
+          {planned && <Badge tone="outline">今日やる</Badge>}
+        </span>
+        <span className="mt-1 block font-medium leading-snug">{view.heading}</span>
+        {notes.length > 0 && <span className="mt-0.5 block truncate text-xs text-stone-500">{notes.join('　')}</span>}
+      </button>
+    </li>
+  )
+}
+
+/** 今日完了したもの（チェック済み。取り消しはできない） */
+function DoneRow({ task }: { task: Task }) {
+  const data = useData()
+  const view = viewTask(task, data)
+  return (
+    <li className="flex items-center gap-3 px-4 py-3">
+      <CheckBox checked />
+      <span className="min-w-0 flex-1 truncate text-sm text-stone-400 line-through">{view.heading}</span>
     </li>
   )
 }
@@ -183,7 +228,7 @@ function Upcoming({ onOpen }: { onOpen: (task: Task) => void }) {
               <p className="mb-1.5 px-1 text-xs font-semibold text-stone-500">{formatShortDate(date)}</p>
               <ul className="space-y-2">
                 {list.map((task) => (
-                  <TaskRow key={task.id} task={task} compact onOpen={() => onOpen(task)} />
+                  <TaskRow key={task.id} task={task} onOpen={() => onOpen(task)} />
                 ))}
               </ul>
             </div>
@@ -196,20 +241,34 @@ function Upcoming({ onOpen }: { onOpen: (task: Task) => void }) {
 }
 
 const ADD_BUTTONS = [
-  { key: 'first', label: '授業の1周目', hint: '今日解いた範囲' },
+  { key: 'first', label: '授業の一周目', hint: '今日解いた範囲' },
   { key: 'assignment', label: '学校課題', hint: '締切のある提出物' },
   { key: 'redo', label: '解き直し', hint: 'もう一度解く単元' },
 ] as const
 
 export function TodayScreen() {
-  const { openTasks, exams, materials } = useData()
+  const data = useData()
+  const { uid, openTasks, doneToday, exams, materials } = data
   const today = useToday()
   const nav = useNav()
+  const toast = useToast()
   const [completing, setCompleting] = useState<Task | null>(null)
   const [adding, setAdding] = useState<(typeof ADD_BUTTONS)[number]['key'] | null>(null)
 
   const hidden = new Set(materials.filter((m) => m.archived).map((m) => m.id))
   const items = todayTasks(openTasks, exams, today, hidden)
+  const total = items.length + doneToday.length
+
+  // 四角を押したとき：単元にも範囲にも紐づかない課題はそのまま完了。数字が要るものは入力シートを開く
+  function handleCheck(task: Task) {
+    const view = viewTask(task, data)
+    if (view.unit || view.range) {
+      setCompleting(task)
+      return
+    }
+    saveChangeSet(uid, completePlainTask(task, Date.now()))
+    toast('完了しました')
+  }
 
   return (
     <>
@@ -242,25 +301,48 @@ export function TodayScreen() {
             onClick={() => setAdding(b.key)}
             className="rounded-xl bg-white px-2 py-2.5 text-left ring-1 ring-stone-200 active:bg-stone-100"
           >
-            <span className="block text-sm font-semibold">＋ {b.label}</span>
+            <span className="block text-[13px] font-semibold tracking-tight whitespace-nowrap">＋{b.label}</span>
             <span className="mt-0.5 block text-[11px] text-stone-500">{b.hint}</span>
           </button>
         ))}
       </div>
 
       <section className="mt-6">
-        <h2 className="mb-2 px-1 text-sm font-semibold text-stone-600">
-          今日のタスク {items.length > 0 && <span className="tabular-nums">{items.length}件</span>}
+        <h2 className="mb-2 flex items-baseline justify-between px-1 text-sm font-semibold text-stone-600">
+          <span>今日のチェックリスト</span>
+          {total > 0 && (
+            <span className="tabular-nums text-stone-500">
+              {doneToday.length} / {total} 完了
+            </span>
+          )}
         </h2>
-        {items.length === 0 ? (
-          <EmptyState>今日のタスクはありません。</EmptyState>
+        {total > 0 && (
+          <div className="mb-3 h-1 overflow-hidden rounded-full bg-stone-200">
+            <div className="h-full rounded-full bg-ink transition-all" style={{ width: `${(doneToday.length / total) * 100}%` }} />
+          </div>
+        )}
+        {total === 0 ? (
+          <EmptyState>
+            今日のタスクはありません。
+            <br />
+            「リスト」で「今日やる」を押すと、ここに追加できます。
+          </EmptyState>
         ) : (
-          <ul className="space-y-2">
+          <ul className="divide-y divide-stone-100 overflow-hidden rounded-2xl bg-white ring-1 ring-stone-200">
             {items.map((item) => (
-              <TaskRow key={item.task.id} task={item.task} overdueDays={item.overdueDays} onOpen={() => setCompleting(item.task)} />
+              <ChecklistRow
+                key={item.task.id}
+                item={item}
+                onOpen={() => setCompleting(item.task)}
+                onCheck={() => handleCheck(item.task)}
+              />
+            ))}
+            {doneToday.map((task) => (
+              <DoneRow key={task.id} task={task} />
             ))}
           </ul>
         )}
+        {total > 0 && items.length === 0 && <p className="mt-3 text-center text-sm text-stone-500">今日のタスクはすべて完了しました。</p>}
       </section>
 
       <Upcoming onOpen={setCompleting} />

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { addChildrenToMaterial } from '../../data/commands.ts'
 import { useData } from '../../data/store.tsx'
 import { parseLines } from '../../domain/text.ts'
-import type { Material } from '../../domain/types.ts'
+import { hasUnits, type Material } from '../../domain/types.ts'
 import { Sheet } from '../../components/Sheet.tsx'
 import { useToast } from '../../components/Toast.tsx'
 import { Button, Field, inputClass } from '../../components/ui.tsx'
@@ -13,7 +13,7 @@ export function BulkAddSheet({ material, startOrder, onClose }: { material: Mate
   const toast = useToast()
   const [text, setText] = useState('')
   const lines = parseLines(text)
-  const childLabel = material.kind === 'cycle' ? '単元' : '範囲'
+  const childLabel = hasUnits(material.kind) ? '単元' : '範囲'
 
   function handleAdd() {
     addChildrenToMaterial(uid, material.id, material.kind, lines, startOrder)
@@ -37,7 +37,7 @@ export function BulkAddSheet({ material, startOrder, onClose }: { material: Mate
           value={text}
           onChange={(e) => setText(e.target.value)}
           autoFocus
-          placeholder={material.kind === 'cycle' ? '第4章 三角関数\n第5章 指数関数と対数関数' : 'No.301-400\nNo.401-500'}
+          placeholder={hasUnits(material.kind) ? '第4章 三角関数\n第5章 指数関数と対数関数' : 'No.301-400\nNo.401-500'}
         />
       </Field>
     </Sheet>

@@ -43,7 +43,7 @@ function Step({ n, x, y, title, sub }: { n: number; x: number; y: number; title:
   )
 }
 
-/** 図1：問題集の周回（1周目 → 完了 → 周回 をくり返し、印が0で卒業） */
+/** 図1：問題集の周回（一周目 → 完了 → 二周目… をくり返し、印が0で卒業） */
 function CycleFigure({ interval }: { interval: number }) {
   return (
     <svg viewBox="0 0 320 240" className="w-full" aria-hidden>
@@ -52,7 +52,7 @@ function CycleFigure({ interval }: { interval: number }) {
           <path d="M0 0 L10 5 L0 10 z" fill={INK} />
         </marker>
       </defs>
-      <Step n={1} x={28} y={4} title="授業・課題で解く（1周目）" sub="紙の問題集に ○△× の印をつける" />
+      <Step n={1} x={28} y={4} title="授業・課題で解く（一周目）" sub="紙の問題集に ○△× の印をつける" />
       <line x1={172} y1={54} x2={172} y2={76} stroke={INK} strokeWidth={1.5} markerEnd="url(#guide-arrow)" />
       <Step n={2} x={28} y={80} title="タスクを完了する" sub="残った印の数を入れる（例：4）" />
 
@@ -157,7 +157,7 @@ function MemorizeFigure({ intervals }: { intervals: number[] }) {
 }
 
 const TIPS: [string, string][] = [
-  ['授業で新しい範囲に進んだ', '「今日」の ＋授業の1周目'],
+  ['授業で新しい範囲に進んだ', '「今日」の ＋授業の一周目'],
   ['学校の課題が出た', '「今日」の ＋学校課題（単元に紐づけると周回の記録になる）'],
   ['卒業した単元をもう一度やりたい', '「今日」の ＋解き直し'],
   ['試験・大会・旅行・趣味の日が決まった', '「予定」に登録して範囲を選ぶ'],
@@ -209,7 +209,7 @@ export function GuideScreen({ onBack }: { onBack: () => void }) {
           <EventFigure leadDays={settings.examLeadDays} />
         </Figure>
         <p className="mt-3 text-sm leading-relaxed text-stone-600">
-          試験・大会・旅行・趣味など、目標の日を「予定」に登録して範囲を選ぶと、まだ卒業していない単元に「仕上げ」タスクができます。何日前までに仕上げるかは予定ごとに選べます。範囲が重なる予定があっても、同じ単元のタスクは1つにまとまります。
+          試験・大会・旅行・趣味など、目標の日を「予定」に登録して範囲を選ぶと、まだ卒業していない単元にタスクができます（何周目かで表示）。何日前までに仕上げるかは予定ごとに選べます。範囲が重なる予定があっても、同じ単元のタスクは1つにまとまります。
         </p>
       </Section>
 

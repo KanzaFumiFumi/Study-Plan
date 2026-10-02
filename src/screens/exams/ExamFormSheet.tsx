@@ -137,9 +137,9 @@ export function ExamFormSheet({ exam, onClose }: { exam?: Exam; onClose: () => v
         </div>
 
         <div>
-          <p className="mb-1 text-sm font-medium text-stone-700">範囲：問題集の単元</p>
+          <p className="mb-1 text-sm font-medium text-stone-700">範囲：単元（周回系・復習系）</p>
           <p className="mb-2 text-xs text-stone-500">
-            まだ卒業していない単元に「仕上げ」タスクを作ります（未着手なら1周目）。ほかの予定と重なる単元は1つにまとめます。
+            まだ卒業していない単元に、予定に向けたタスクを作ります（何周目かで表示）。ほかの予定と重なる単元は1つにまとめます。
           </p>
           <UnitPicker selected={selectedUnits} onChange={setSelectedUnits} alwaysShowMaterialIds={inRangeMaterialIds} />
         </div>

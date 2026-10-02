@@ -4,6 +4,8 @@ import { useData } from '../../data/store.tsx'
 import { isISODate } from '../../domain/date.ts'
 import { unitKey } from '../../domain/lookup.ts'
 import { addAssignment, addFirstLaps, addRedos, type ManualResult, type UnitTarget } from '../../domain/manual.ts'
+import { kanjiNumber } from '../../domain/labels.ts'
+import { MATERIAL_KIND_LABEL, hasUnits } from '../../domain/types.ts'
 import { useToday } from '../../hooks/useToday.ts'
 import { Sheet } from '../../components/Sheet.tsx'
 import { useToast } from '../../components/Toast.tsx'
@@ -26,7 +28,7 @@ function resultMessage(label: string, { created, merged }: ManualResult): string
   return parts.join('。') || '変更はありません'
 }
 
-/** 4.3 授業の1周目：今日の範囲の単元を選ぶ */
+/** 4.3 授業の一周目：今日の範囲の単元（周回系・復習系）を選ぶ */
 export function AddFirstLapSheet({ onClose }: { onClose: () => void }) {
   const { uid, openTasks } = useData()
   const today = useToday()
@@ -37,13 +39,13 @@ export function AddFirstLapSheet({ onClose }: { onClose: () => void }) {
   function handleAdd() {
     const result = addFirstLaps({ targets, openTasks, today })
     saveChangeSet(uid, result.changes)
-    toast(resultMessage('1周目', result))
+    toast(resultMessage('一周目', result))
     onClose()
   }
 
   return (
     <Sheet
-      title="授業の1周目を追加"
+      title="授業の一周目を追加"
       onClose={onClose}
       footer={
         <Button className="w-full" disabled={targets.length === 0} onClick={handleAdd}>
@@ -108,7 +110,7 @@ export function AddAssignmentSheet({ onClose }: { onClose: () => void }) {
   const [materialId, setMaterialId] = useState('')
   const [unitId, setUnitId] = useState('')
 
-  const cycleMaterials = materials.filter((m) => m.kind === 'cycle' && !m.archived)
+  const cycleMaterials = materials.filter((m) => hasUnits(m.kind) && !m.archived)
   const material = cycleMaterials.find((m) => m.id === materialId)
   const materialUnits = units.filter((u) => u.materialId === materialId)
   const unit = materialUnits.find((u) => u.id === unitId)
@@ -142,7 +144,7 @@ export function AddAssignmentSheet({ onClose }: { onClose: () => void }) {
         <Field label="締切">
           <input type="date" className={inputClass} value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
         </Field>
-        <Field label="紐づける単元（任意）" hint="単元に紐づけると、完了したときにその単元の周回として記録されます（最初なら1周目）。">
+        <Field label="紐づける単元（任意）" hint="単元に紐づけると、完了したときにその単元の周回として記録されます（最初なら一周目）。">
           <div className="space-y-2">
             <select
               className={inputClass}
@@ -155,7 +157,7 @@ export function AddAssignmentSheet({ onClose }: { onClose: () => void }) {
               <option value="">紐づけない</option>
               {cycleMaterials.map((m) => (
                 <option key={m.id} value={m.id}>
-                  {m.name}
+                  {m.name}（{MATERIAL_KIND_LABEL[m.kind]}）
                 </option>
               ))}
             </select>
@@ -165,7 +167,7 @@ export function AddAssignmentSheet({ onClose }: { onClose: () => void }) {
                 {materialUnits.map((u) => (
                   <option key={u.id} value={u.id}>
                     {u.name}
-                    {u.graduated ? '（卒業）' : u.lapCount > 0 ? `（${u.lapCount}周）` : ''}
+                    {u.graduated ? '（卒業）' : u.lapCount > 0 ? `（${kanjiNumber(u.lapCount)}周済み）` : ''}
                   </option>
                 ))}
               </select>

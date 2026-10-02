@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useData } from '../data/store.tsx'
 import { daysBetween, formatShortDate } from '../domain/date.ts'
-import type { Exam } from '../domain/types.ts'
+import type { Exam, ISODate } from '../domain/types.ts'
 import { useToday } from '../hooks/useToday.ts'
 import { Badge, Button, EmptyState, ScreenTitle } from '../components/ui.tsx'
+import { Calendar } from './exams/Calendar.tsx'
+import { DaySheet } from './exams/DaySheet.tsx'
 import { ExamFormSheet } from './exams/ExamFormSheet.tsx'
 
 function ExamCard({ exam, onOpen }: { exam: Exam; onOpen: () => void }) {
@@ -50,6 +52,7 @@ export function ExamsScreen() {
   const { exams } = useData()
   const today = useToday()
   const [editing, setEditing] = useState<Exam | 'new' | null>(null)
+  const [day, setDay] = useState<ISODate | null>(null)
 
   const upcoming = exams.filter((e) => e.date >= today)
   const past = exams.filter((e) => e.date < today).reverse()
@@ -66,6 +69,9 @@ export function ExamsScreen() {
         予定
       </ScreenTitle>
 
+      <Calendar onSelect={setDay} />
+
+      <h2 className="mt-6 mb-2 px-1 text-sm font-semibold text-stone-600">これからの予定</h2>
       {upcoming.length === 0 ? (
         <EmptyState>
           予定がありません。
@@ -91,6 +97,16 @@ export function ExamsScreen() {
         </details>
       )}
 
+      {day && (
+        <DaySheet
+          date={day}
+          onClose={() => setDay(null)}
+          onEditExam={(exam) => {
+            setDay(null)
+            setEditing(exam)
+          }}
+        />
+      )}
       {editing && <ExamFormSheet exam={editing === 'new' ? undefined : editing} onClose={() => setEditing(null)} />}
     </>
   )

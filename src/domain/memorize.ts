@@ -48,6 +48,52 @@ export function startRange(input: { range: Range; material: Material; openTasks:
   return { changes, created: true }
 }
 
+/**
+ * カレンダーで、暗記の範囲を日付に割り当てる（v0.4〜）。
+ * - 未完了の暗記タスクがある範囲：その復習日を指定の日に移す
+ * - ない範囲（未開始・止まっている）：指定の日に開始する暗記タスクを作る
+ * その後は、完了するたびに今までどおり間隔を広げて次が作られる。
+ */
+export function scheduleRanges(input: {
+  targets: { range: Range; material: Material }[]
+  openTasks: Task[]
+  date: ISODate
+}): { changes: ChangeSet; created: number; moved: number } {
+  const { targets, openTasks, date } = input
+  const changes = emptyChangeSet()
+  const seen = new Set<string>()
+  let created = 0
+  let moved = 0
+
+  for (const { range, material } of targets) {
+    const ref = { materialId: range.materialId, rangeId: range.id }
+    const key = `${ref.materialId}/${ref.rangeId}`
+    if (seen.has(key)) continue
+    seen.add(key)
+
+    const existing = openTaskForRange(openTasks, ref)
+    if (existing) {
+      if (existing.dueDate === date) continue
+      changes.updateTasks.push({ id: existing.id, patch: { dueDate: date } })
+      changes.updateRanges.push({ ...ref, patch: { nextReviewAt: date } })
+      moved += 1
+    } else {
+      changes.updateRanges.push({ ...ref, patch: { started: true, nextReviewAt: date } })
+      changes.createTasks.push({
+        type: 'memorize',
+        title: rangeTaskTitle(material, range),
+        materialId: range.materialId,
+        unitId: null,
+        rangeId: range.id,
+        examIds: [],
+        dueDate: date,
+      })
+      created += 1
+    }
+  }
+  return { changes, created, moved }
+}
+
 export interface CompleteMemorizeInput {
   task: Task
   range: Range
