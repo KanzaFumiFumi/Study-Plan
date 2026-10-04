@@ -57,7 +57,8 @@ function MoveButtons({ onUp, onDown, canUp, canDown, label }: { onUp: () => void
   )
 }
 
-function MaterialCard({
+/** 教材のカード（本棚と、アーカイブの「解き終えた教材」で使う） */
+export function MaterialCard({
   material,
   onOpen,
   move,
@@ -123,7 +124,13 @@ export function ShelfScreen() {
   const [reordering, setReordering] = useState(false)
 
   const selected = materials.find((m) => m.id === selectedId)
-  if (selected) return <MaterialDetail material={selected} onBack={() => setSelectedId(null)} />
+  if (selected) {
+    return (
+      <div className="pc:max-w-3xl">
+        <MaterialDetail material={selected} onBack={() => setSelectedId(null)} />
+      </div>
+    )
+  }
 
   // materials は並び順（order）で並んでいる
   const list = materials.filter((m) => m.kind === kind)
@@ -159,17 +166,19 @@ export function ShelfScreen() {
       >
         本棚
       </ScreenTitle>
-      <Segmented
-        value={kind}
-        onChange={(k) => {
-          setKind(k)
-          setReordering(false)
-        }}
-        options={(['cycle', 'review', 'memorize'] as const).map((k) => ({ value: k, label: MATERIAL_KIND_LABEL[k] }))}
-      />
+      <div className="pc:max-w-md">
+        <Segmented
+          value={kind}
+          onChange={(k) => {
+            setKind(k)
+            setReordering(false)
+          }}
+          options={(['cycle', 'review', 'memorize'] as const).map((k) => ({ value: k, label: MATERIAL_KIND_LABEL[k] }))}
+        />
+      </div>
 
       {active.length > 0 && (
-        <div className="mt-3 flex items-center justify-between">
+        <div className="mt-3 flex items-center justify-between pc:justify-start pc:gap-6">
           <label className="flex cursor-pointer items-center gap-2 text-sm text-stone-700">
             <input type="checkbox" className="h-4 w-4 accent-ink" checked={bySubject} onChange={toggleBySubject} />
             教科別にまとめる
@@ -213,7 +222,7 @@ export function ShelfScreen() {
                   )}
                 </div>
               )}
-              <ul className="space-y-3">
+              <ul className="space-y-3 pc:grid pc:grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] pc:gap-3 pc:space-y-0">
                 {group.materials.map((m, i) => (
                   <MaterialCard
                     key={m.id}
@@ -240,7 +249,7 @@ export function ShelfScreen() {
       {archived.length > 0 && (
         <details className="mt-6">
           <summary className="cursor-pointer text-sm text-stone-500">アーカイブ済み（{archived.length}）</summary>
-          <ul className="mt-3 space-y-3 opacity-70">
+          <ul className="mt-3 space-y-3 opacity-70 pc:grid pc:grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] pc:gap-3 pc:space-y-0">
             {archived.map((m) => (
               <MaterialCard key={m.id} material={m} onOpen={() => setSelectedId(m.id)} />
             ))}

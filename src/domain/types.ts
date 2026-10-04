@@ -99,6 +99,12 @@ export type TaskStatus = 'open' | 'done'
 /** 完了時に入力した値（仕様への追加：周回ごとの記録を残すため） */
 export type TaskResult = { remainingMarks: number } | MemorizeResult
 
+/** 完了する前の単元・範囲の記録（v0.5〜）。チェックを外したときに、これに戻す */
+export interface CompletionBefore {
+  unit?: Pick<Unit, 'lapCount' | 'remainingMarks' | 'graduated' | 'lastDoneAt'>
+  range?: Pick<Range, 'started' | 'step' | 'nextReviewAt' | 'lastResult'>
+}
+
 /** タスク（users/{uid}/tasks/{id}） */
 export interface Task {
   id: string
@@ -118,10 +124,21 @@ export interface Task {
   result: TaskResult | null
   /** 「今日やる」と選んだ日（v0.4〜）。この日が今日なら、期限が先でも今日のチェックリストに出す。期限は変えない */
   plannedFor: ISODate | null
+  /** 完了したのが何周目か（v0.5〜。周回系・復習系の単元のタスクだけ。それ以外と未完了は null） */
+  lap: number | null
+  /** 完了する前の単元・範囲の記録（v0.5〜。チェックを外すときに使う。単元も範囲もないタスクと未完了は null） */
+  before: CompletionBefore | null
+  /** このタスクを自動で作った完了のタスクID（v0.5〜。完了で次の周回・復習を作ったとき。チェックを外したら消す） */
+  createdBy: string | null
+  /** アーカイブへ送った（v0.5〜）。完了済みは、完了した日が終わるか、これが true になるとリストから消えてアーカイブに入る */
+  archived: boolean
 }
 
 /** 新しく作るタスク。id・createdAt・status などは保存時に data 層が補う */
-export type NewTask = Pick<Task, 'type' | 'title' | 'materialId' | 'unitId' | 'rangeId' | 'examIds' | 'dueDate'>
+export type NewTask = Pick<Task, 'type' | 'title' | 'materialId' | 'unitId' | 'rangeId' | 'examIds' | 'dueDate'> & {
+  /** 完了で自動に作るとき、その完了したタスクのID */
+  createdBy?: string
+}
 
 /** 設定（users/{uid}/settings/main） */
 export interface Settings {

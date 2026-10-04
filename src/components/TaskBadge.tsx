@@ -13,6 +13,6 @@ const TONES: Record<TaskType, BadgeTone> = {
 }
 
 /** タスクの種類のバッジ。周回系・復習系の単元のタスクは「何周目か」で表示する */
-export function TaskBadge({ task, unit }: { task: Pick<Task, 'type'>; unit?: Unit }) {
+export function TaskBadge({ task, unit }: { task: Pick<Task, 'type' | 'status' | 'lap'>; unit?: Unit }) {
   return <Badge tone={TONES[task.type]}>{taskLabel(task, unit)}</Badge>
 }

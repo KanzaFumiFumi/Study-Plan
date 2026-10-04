@@ -1,7 +1,7 @@
 import { useEffect, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 
-/** 画面の下から出てくる入力シート。表示するときだけ描画する（{open && <Sheet …/>}） */
+/** 画面の下から出てくる入力シート（PC版では画面の中央に出す）。表示するときだけ描画する（{open && <Sheet …/>}） */
 export function Sheet({
   title,
   onClose,
@@ -25,13 +25,13 @@ export function Sheet({
   }, [onClose])
 
   return createPortal(
-    <div className="fixed inset-0 z-40 flex items-end justify-center">
+    <div className="fixed inset-0 z-40 flex items-end justify-center pc:items-center pc:p-6">
       <div className="absolute inset-0 bg-stone-900/40" onClick={onClose} aria-hidden />
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="relative flex max-h-[90dvh] w-full max-w-lg flex-col rounded-t-2xl bg-white shadow-xl"
+        className="relative flex max-h-[90dvh] w-full max-w-lg flex-col rounded-t-2xl bg-white shadow-xl pc:max-h-[85dvh] pc:rounded-2xl"
       >
         <header className="flex items-center justify-between gap-2 border-b border-stone-200 px-4 py-3">
           <h2 className="font-bold">{title}</h2>

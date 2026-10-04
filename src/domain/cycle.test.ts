@@ -22,12 +22,29 @@ describe('4.1 周回系の単元を完了したとき', () => {
 
     expect(graduated).toBe(false)
     expect(changes.updateTasks).toEqual([
-      { id: 'first1', patch: { status: 'done', completedAt: 123, result: { remainingMarks: 5 } } },
+      {
+        id: 'first1',
+        patch: {
+          status: 'done',
+          completedAt: 123,
+          result: { remainingMarks: 5 },
+          // v0.5：何周目を終えたかと、チェックを外したときに戻す単元の記録
+          lap: 1,
+          before: { unit: { lapCount: 0, remainingMarks: null, graduated: false, lastDoneAt: null } },
+        },
+      },
     ])
     expect(changes.updateUnits).toEqual([
       { materialId: 'm1', unitId: 'u1', patch: { lapCount: 1, remainingMarks: 5, lastDoneAt: today, graduated: false } },
     ])
-    expect(nextTask).toMatchObject({ type: 'cycle', materialId: 'm1', unitId: 'u1', examIds: [], dueDate: '2026-10-04' })
+    expect(nextTask).toMatchObject({
+      type: 'cycle',
+      materialId: 'm1',
+      unitId: 'u1',
+      examIds: [],
+      dueDate: '2026-10-04',
+      createdBy: 'first1',
+    })
     expect(changes.createTasks).toHaveLength(1)
   })
 

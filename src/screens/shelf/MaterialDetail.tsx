@@ -27,7 +27,16 @@ function NextTask({ task, unit, today }: { task: Task | undefined; unit?: Unit; 
   )
 }
 
-export function MaterialDetail({ material, onBack }: { material: Material; onBack: () => void }) {
+export function MaterialDetail({
+  material,
+  onBack,
+  backLabel = '本棚',
+}: {
+  material: Material
+  onBack: () => void
+  /** 戻る先の名前（アーカイブから開いたときは「アーカイブ」） */
+  backLabel?: string
+}) {
   const { uid, units, ranges, openTasks, settings } = useData()
   const today = useToday()
   const toast = useToast()
@@ -64,7 +73,7 @@ export function MaterialDetail({ material, onBack }: { material: Material; onBac
 
   return (
     <>
-      <BackButton onClick={onBack}>本棚</BackButton>
+      <BackButton onClick={onBack}>{backLabel}</BackButton>
       <ScreenTitle
         action={
           <Button variant="secondary" className="shrink-0 px-3 py-1.5" onClick={() => setEditingMaterial(true)}>

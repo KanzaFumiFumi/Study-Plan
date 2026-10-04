@@ -122,7 +122,9 @@ export function completeMemorizeTask(input: CompleteMemorizeInput): {
   if (task.materialId !== range.materialId || task.rangeId !== range.id) throw new Error('タスクと範囲が一致しません')
 
   const changes = emptyChangeSet()
-  changes.updateTasks.push({ id: task.id, patch: { status: 'done', completedAt: now, result: { ...result } } })
+  // 完了する前の範囲の記録を残す（v0.5〜。チェックを外したときに元に戻す）
+  const before = { started: range.started, step: range.step, nextReviewAt: range.nextReviewAt, lastResult: range.lastResult }
+  changes.updateTasks.push({ id: task.id, patch: { status: 'done', completedAt: now, result: { ...result }, before: { range: before } } })
 
   const step = nextStep(range.step, result)
   const nextReviewAt = addDays(today, intervalDays(step, settings.memorizeIntervals))
@@ -142,6 +144,7 @@ export function completeMemorizeTask(input: CompleteMemorizeInput): {
       rangeId: range.id,
       examIds: [],
       dueDate: nextReviewAt,
+      createdBy: task.id,
     }
     changes.createTasks.push(nextTask)
   }

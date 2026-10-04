@@ -58,7 +58,18 @@ describe('4.6 暗記タスクを完了したとき', () => {
       { materialId: 'm2', rangeId: 'r1', patch: { started: true, step: 1, nextReviewAt: '2026-09-30', lastResult: result } },
     ])
     expect(nextTask).toMatchObject({ type: 'memorize', rangeId: 'r1', dueDate: '2026-09-30' })
-    expect(changes.updateTasks).toEqual([{ id: 'k1', patch: { status: 'done', completedAt: 9, result } }])
+    expect(changes.updateTasks).toEqual([
+      {
+        id: 'k1',
+        patch: {
+          status: 'done',
+          completedAt: 9,
+          result,
+          before: { range: { started: true, step: 0, nextReviewAt: null, lastResult: null } },
+        },
+      },
+    ])
+    expect(nextTask?.createdBy).toBe('k1')
   })
 
   test('半知・未知が残れば段階は据え置き（step 0 なら翌日）', () => {

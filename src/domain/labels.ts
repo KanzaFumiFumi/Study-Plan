@@ -21,13 +21,24 @@ export function nextLapOf(unit: Pick<Unit, 'lapCount'>): number {
 }
 
 /**
+ * タスクが何周目か。未完了なら単元の次の周。
+ * 完了済み（v0.5〜）なら完了したときの周（lap）。lap のない v0.4 までの完了は、単元の今の周回数で補う。
+ * 単元が分からなければ null。
+ */
+export function lapOfTask(task: Pick<Task, 'status' | 'lap'>, unit?: Pick<Unit, 'lapCount'>): number | null {
+  if (task.status === 'done') return task.lap ?? (unit && unit.lapCount > 0 ? unit.lapCount : null)
+  return unit ? nextLapOf(unit) : null
+}
+
+/**
  * 画面に出すタスクの名前（v0.4〜）。
  * 周回系・復習系の単元のタスク（1周目・定例周回・予定に向けた仕上げ）は「何周目か」で表す。
  * 解き直し・課題・暗記はこれまでどおりの名前。
  */
-export function taskLabel(task: Pick<Task, 'type'>, unit?: Pick<Unit, 'lapCount'>): string {
+export function taskLabel(task: Pick<Task, 'type' | 'status' | 'lap'>, unit?: Pick<Unit, 'lapCount'>): string {
   if (task.type === 'first' || task.type === 'cycle' || task.type === 'exam') {
-    if (unit) return lapLabel(nextLapOf(unit))
+    const lap = lapOfTask(task, unit)
+    if (lap) return lapLabel(lap)
     if (task.type === 'first') return lapLabel(1)
   }
   return TASK_TYPE_LABEL[task.type]

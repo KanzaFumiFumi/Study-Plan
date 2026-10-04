@@ -59,7 +59,7 @@ export function Calendar({ onSelect }: { onSelect: (date: ISODate) => void }) {
                 type="button"
                 onClick={() => onSelect(date)}
                 aria-label={`${date}${hasEvent ? '・予定あり' : ''}${memo ? `・暗記${memo}件` : ''}`}
-                className={`flex h-14 flex-col items-center rounded-lg pt-1 active:bg-stone-100 ${date < today ? 'opacity-50' : ''}`}
+                className={`flex h-14 flex-col items-center rounded-lg pt-1 active:bg-stone-100 pc:h-20 pc:pt-2 pc:hover:bg-stone-50 ${date < today ? 'opacity-50' : ''}`}
               >
                 <span
                   className={`flex h-7 w-7 items-center justify-center rounded-full text-sm tabular-nums ${

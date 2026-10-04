@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import type { User } from 'firebase/auth'
 import { DataProvider, useData } from './data/store.tsx'
+import { LayoutContext, useLayoutState } from './hooks/useLayout.ts'
 import { NavContext } from './hooks/useNav.ts'
-import { TAB_KEYS, TabBar, type TabKey } from './components/TabBar.tsx'
+import { SideNav, TAB_KEYS, TabBar, type TabKey } from './components/TabBar.tsx'
 import { ToastProvider } from './components/Toast.tsx'
+import { ArchiveScreen } from './screens/ArchiveScreen.tsx'
 import { ExamsScreen } from './screens/ExamsScreen.tsx'
 import { GuideScreen } from './screens/GuideScreen.tsx'
 import { ListsScreen } from './screens/ListsScreen.tsx'
@@ -30,6 +32,8 @@ function Screen({ tab, user, onBack }: { tab: TabKey; user: User; onBack: () => 
       return <ShelfScreen />
     case 'exams':
       return <ExamsScreen />
+    case 'archive':
+      return <ArchiveScreen />
     case 'settings':
       return <SettingsScreen user={user} />
   }
@@ -39,6 +43,8 @@ export function Shell({ user }: { user: User }) {
   const [tab, setTab] = useState<TabKey>(tabFromHash)
   // 使い方の画面から「戻る」ときの行き先
   const [previousTab, setPreviousTab] = useState<TabKey>('today')
+  // スマホ版・PC版（v0.5〜）。中身は同じで、並べ方だけを変える
+  const [layout, setLayout] = useLayoutState()
 
   function navigate(next: TabKey) {
     if (next === 'guide' && tab !== 'guide') setPreviousTab(tab)
@@ -51,17 +57,33 @@ export function Shell({ user }: { user: User }) {
     window.scrollTo(0, 0)
   }, [tab])
 
+  const screen = <Screen key={tab} tab={tab} user={user} onBack={() => setTab(previousTab)} />
+
   return (
     <DataProvider uid={user.uid}>
       <ToastProvider>
         <NavContext.Provider value={navigate}>
-          <div className="mx-auto min-h-full max-w-lg">
-            <main className="px-4 pt-[calc(env(safe-area-inset-top)+1.25rem)] pb-[calc(env(safe-area-inset-bottom)+5.5rem)]">
-              <SyncStatus />
-              <Screen key={tab} tab={tab} user={user} onBack={() => setTab(previousTab)} />
-            </main>
-            <TabBar current={tab} onChange={navigate} />
-          </div>
+          <LayoutContext.Provider value={{ layout, setLayout }}>
+            {layout === 'pc' ? (
+              <div className="min-h-full">
+                <SideNav current={tab} onChange={navigate} />
+                <main className="ml-56 px-8 pt-6 pb-12">
+                  <div className="mx-auto max-w-6xl">
+                    <SyncStatus />
+                    {screen}
+                  </div>
+                </main>
+              </div>
+            ) : (
+              <div className="mx-auto min-h-full max-w-lg">
+                <main className="px-4 pt-[calc(env(safe-area-inset-top)+1.25rem)] pb-[calc(env(safe-area-inset-bottom)+5.5rem)]">
+                  <SyncStatus />
+                  {screen}
+                </main>
+                <TabBar current={tab} onChange={navigate} />
+              </div>
+            )}
+          </LayoutContext.Provider>
         </NavContext.Provider>
       </ToastProvider>
     </DataProvider>

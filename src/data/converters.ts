@@ -2,6 +2,7 @@ import { Timestamp, type DocumentData } from 'firebase/firestore'
 import { isISODate } from '../domain/date.ts'
 import {
   DEFAULT_SETTINGS,
+  type CompletionBefore,
   type Exam,
   type Material,
   type MemorizeResult,
@@ -115,7 +116,37 @@ export function toTask(id: string, d: DocumentData): Task {
     createdAt: millis(d.createdAt) ?? 0,
     result: taskResult(d.result),
     plannedFor: dateOrNull(d.plannedFor),
+    // ここから下は v0.5 で追加。それより前のタスクにはないので null / false で補う
+    lap: numOrNull(d.lap),
+    before: completionBefore(d.before),
+    createdBy: typeof d.createdBy === 'string' ? d.createdBy : null,
+    archived: d.archived === true,
   }
+}
+
+function completionBefore(v: unknown): CompletionBefore | null {
+  if (!v || typeof v !== 'object') return null
+  const o = v as Record<string, unknown>
+  const before: CompletionBefore = {}
+  if (o.unit && typeof o.unit === 'object') {
+    const u = o.unit as Record<string, unknown>
+    before.unit = {
+      lapCount: num(u.lapCount, 0),
+      remainingMarks: numOrNull(u.remainingMarks),
+      graduated: u.graduated === true,
+      lastDoneAt: dateOrNull(u.lastDoneAt),
+    }
+  }
+  if (o.range && typeof o.range === 'object') {
+    const r = o.range as Record<string, unknown>
+    before.range = {
+      started: r.started === true,
+      step: num(r.step, 0),
+      nextReviewAt: dateOrNull(r.nextReviewAt),
+      lastResult: memorizeResult(r.lastResult),
+    }
+  }
+  return before.unit || before.range ? before : null
 }
 
 export function toSettings(d: DocumentData | undefined): Settings {
@@ -138,6 +169,10 @@ export function newTaskData(task: NewTask, now: number): DocumentData {
     createdAt: Timestamp.fromMillis(now),
     result: null,
     plannedFor: null,
+    lap: null,
+    before: null,
+    createdBy: task.createdBy ?? null,
+    archived: false,
   }
 }
 

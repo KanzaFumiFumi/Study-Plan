@@ -1,16 +1,18 @@
-import { useState } from 'react'
-import { saveChangeSet } from '../data/commands.ts'
+import { useState, type ReactNode } from 'react'
 import { useData } from '../data/store.tsx'
+import { useTasksDueOn } from '../data/queries.ts'
 import { viewTask } from '../data/taskView.ts'
-import { completePlainTask } from '../domain/cycle.ts'
+import { assignmentsDueOn, isDoneInList, isInArchive } from '../domain/archive.ts'
 import { formatShortDate } from '../domain/date.ts'
 import { upcomingExams } from '../domain/exam.ts'
 import { todayTasks, upcomingTasks, type TodayItem } from '../domain/sort.ts'
 import type { Task } from '../domain/types.ts'
+import { useIsPc } from '../hooks/useLayout.ts'
 import { useNav } from '../hooks/useNav.ts'
 import { useToday } from '../hooks/useToday.ts'
+import { LayoutSwitch } from '../components/LayoutSwitch.tsx'
+import { ArchiveButton, CheckBox, DoneMark, useTaskActions } from '../components/TaskCheck.tsx'
 import { TaskBadge } from '../components/TaskBadge.tsx'
-import { useToast } from '../components/Toast.tsx'
 import { Badge, EmptyState, ScreenTitle } from '../components/ui.tsx'
 import { AddAssignmentSheet, AddFirstLapSheet, AddRedoSheet } from './today/AddTaskSheets.tsx'
 import { CompleteSheet } from './today/CompleteSheet.tsx'
@@ -82,7 +84,7 @@ function StartGuide() {
     { text: '試験・大会・旅行などの日は「予定」に登録する', action: { label: '予定へ', onClick: () => nav('exams') } },
   ]
   return (
-    <section className="mt-5 rounded-2xl bg-white p-4 ring-1 ring-stone-200">
+    <section className="rounded-2xl bg-white p-4 ring-1 ring-stone-200">
       <h2 className="font-bold tracking-wide">はじめかた</h2>
       <ol className="mt-3 space-y-3">
         {steps.map((s, i) => (
@@ -110,6 +112,56 @@ function StartGuide() {
   )
 }
 
+/** 見出し（左に名前、右に件数など） */
+function SectionTitle({ children, aside }: { children: ReactNode; aside?: ReactNode }) {
+  return (
+    <h2 className="mb-2 flex items-baseline justify-between px-1 text-sm font-semibold text-stone-600">
+      <span>{children}</span>
+      {aside && <span className="tabular-nums text-stone-500">{aside}</span>}
+    </h2>
+  )
+}
+
+/**
+ * 今日提出の課題（v0.5〜）：締切が今日の課題を、未完了・完了済み・アーカイブ済みすべて出す（確認用。操作はチェックリストで）。
+ */
+function DueTodayAssignments() {
+  const data = useData()
+  const today = useToday()
+  const tasks = assignmentsDueOn(useTasksDueOn(data.uid, today), today)
+  const done = tasks.filter((t) => t.status === 'done').length
+
+  return (
+    <section>
+      <SectionTitle aside={tasks.length > 0 && `${done} / ${tasks.length} 完了`}>今日提出の課題</SectionTitle>
+      {tasks.length === 0 ? (
+        <p className="rounded-2xl bg-white px-4 py-3 text-sm text-stone-400 ring-1 ring-stone-200">今日が締切の課題はありません</p>
+      ) : (
+        <ul className="divide-y divide-stone-100 overflow-hidden rounded-2xl bg-white ring-1 ring-stone-200">
+          {tasks.map((task) => {
+            const view = viewTask(task, data)
+            const isDone = task.status === 'done'
+            return (
+              <li key={task.id} className="flex items-center gap-3 px-4 py-3">
+                <DoneMark done={isDone} />
+                <div className="min-w-0 flex-1">
+                  <p className={`text-sm leading-snug ${isDone ? 'text-stone-400 line-through' : 'font-medium'}`}>{task.title}</p>
+                  {view.sub && <p className="mt-0.5 truncate text-xs text-stone-500">{view.sub}</p>}
+                </div>
+                {isDone ? (
+                  <Badge>{isInArchive(task, today) ? '完了・アーカイブ' : '完了'}</Badge>
+                ) : (
+                  <Badge tone="ink">未完了</Badge>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </section>
+  )
+}
+
 /** これからのタスクの1行（タップで完了シート） */
 function TaskRow({ task, onOpen }: { task: Task; onOpen: () => void }) {
   const data = useData()
@@ -131,24 +183,6 @@ function TaskRow({ task, onOpen }: { task: Task; onOpen: () => void }) {
         </div>
       </button>
     </li>
-  )
-}
-
-/** チェックリストの四角 */
-function CheckBox({ checked }: { checked: boolean }) {
-  return (
-    <span
-      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${
-        checked ? 'bg-ink text-white' : 'bg-white ring-2 ring-stone-300'
-      }`}
-      aria-hidden
-    >
-      {checked && (
-        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={3}>
-          <path d="m5 12 5 5 9-10" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      )}
-    </span>
   )
 }
 
@@ -182,23 +216,31 @@ function ChecklistRow({ item, onOpen, onCheck }: { item: TodayItem; onOpen: () =
   )
 }
 
-/** 今日完了したもの（チェック済み。取り消しはできない） */
-function DoneRow({ task }: { task: Task }) {
+/** 今日完了したもの（チェック済み）。四角を押すとチェックを外せる。「アーカイブへ」でリストから消す（v0.5〜） */
+function DoneRow({ task, onUncheck, onArchive }: { task: Task; onUncheck: () => void; onArchive: () => void }) {
   const data = useData()
   const view = viewTask(task, data)
   return (
-    <li className="flex items-center gap-3 px-4 py-3">
-      <CheckBox checked />
+    <li className="flex items-center gap-2 pr-3">
+      <button
+        type="button"
+        onClick={onUncheck}
+        aria-label={`「${view.heading}」のチェックを外す`}
+        className="py-3 pr-1 pl-4 active:opacity-60"
+      >
+        <CheckBox checked />
+      </button>
       <span className="min-w-0 flex-1 truncate text-sm text-stone-400 line-through">{view.heading}</span>
+      <ArchiveButton onClick={onArchive} />
     </li>
   )
 }
 
 /** これからのタスク（明日から7日間）。自動で作られたタスクがいつ来るか分かるように。先にやりたければタップして完了できる */
-function Upcoming({ onOpen }: { onOpen: (task: Task) => void }) {
+function Upcoming({ onOpen, defaultOpen = false }: { onOpen: (task: Task) => void; defaultOpen?: boolean }) {
   const { openTasks, materials } = useData()
   const today = useToday()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(defaultOpen)
   const hidden = new Set(materials.filter((m) => m.archived).map((m) => m.id))
   const { tasks, later } = upcomingTasks(openTasks, today, UPCOMING_DAYS, hidden)
   if (tasks.length === 0 && later === 0) return null
@@ -207,7 +249,7 @@ function Upcoming({ onOpen }: { onOpen: (task: Task) => void }) {
   for (const t of tasks) byDate.set(t.dueDate, [...(byDate.get(t.dueDate) ?? []), t])
 
   return (
-    <section className="mt-6">
+    <section>
       <button
         type="button"
         onClick={() => setOpen(!open)}
@@ -247,31 +289,23 @@ const ADD_BUTTONS = [
 ] as const
 
 export function TodayScreen() {
-  const data = useData()
-  const { uid, openTasks, doneToday, exams, materials } = data
+  const { openTasks, doneToday, exams, materials } = useData()
   const today = useToday()
   const nav = useNav()
-  const toast = useToast()
+  const pc = useIsPc()
   const [completing, setCompleting] = useState<Task | null>(null)
   const [adding, setAdding] = useState<(typeof ADD_BUTTONS)[number]['key'] | null>(null)
+  const actions = useTaskActions(setCompleting)
 
   const hidden = new Set(materials.filter((m) => m.archived).map((m) => m.id))
   const items = todayTasks(openTasks, exams, today, hidden)
-  const total = items.length + doneToday.length
+  // 今日完了したもののうち、まだアーカイブへ送っていないもの（v0.5〜）
+  const done = doneToday.filter((t) => isDoneInList(t, today))
+  const total = items.length + done.length
 
-  // 四角を押したとき：単元にも範囲にも紐づかない課題はそのまま完了。数字が要るものは入力シートを開く
-  function handleCheck(task: Task) {
-    const view = viewTask(task, data)
-    if (view.unit || view.range) {
-      setCompleting(task)
-      return
-    }
-    saveChangeSet(uid, completePlainTask(task, Date.now()))
-    toast('完了しました')
-  }
-
-  return (
+  const title = (
     <>
+      <LayoutSwitch />
       <ScreenTitle
         action={
           <span className="flex items-center gap-3">
@@ -289,68 +323,107 @@ export function TodayScreen() {
       >
         今日
       </ScreenTitle>
-      <Countdown />
+    </>
+  )
 
-      {materials.length === 0 && <StartGuide />}
+  const addButtons = (
+    <div className="grid grid-cols-3 gap-2">
+      {ADD_BUTTONS.map((b) => (
+        <button
+          key={b.key}
+          type="button"
+          onClick={() => setAdding(b.key)}
+          className="rounded-xl bg-white px-2 py-2.5 text-left ring-1 ring-stone-200 active:bg-stone-100 pc:px-3 pc:hover:bg-stone-50"
+        >
+          <span className="block text-[13px] font-semibold tracking-tight whitespace-nowrap">＋{b.label}</span>
+          <span className="mt-0.5 block text-[11px] text-stone-500">{b.hint}</span>
+        </button>
+      ))}
+    </div>
+  )
 
-      <div className="mt-4 grid grid-cols-3 gap-2">
-        {ADD_BUTTONS.map((b) => (
-          <button
-            key={b.key}
-            type="button"
-            onClick={() => setAdding(b.key)}
-            className="rounded-xl bg-white px-2 py-2.5 text-left ring-1 ring-stone-200 active:bg-stone-100"
-          >
-            <span className="block text-[13px] font-semibold tracking-tight whitespace-nowrap">＋{b.label}</span>
-            <span className="mt-0.5 block text-[11px] text-stone-500">{b.hint}</span>
-          </button>
-        ))}
-      </div>
+  const checklist = (
+    <section>
+      <SectionTitle aside={total > 0 && `${done.length} / ${total} 完了`}>今日のチェックリスト</SectionTitle>
+      {total > 0 && (
+        <div className="mb-3 h-1 overflow-hidden rounded-full bg-stone-200">
+          <div className="h-full rounded-full bg-ink transition-all" style={{ width: `${(done.length / total) * 100}%` }} />
+        </div>
+      )}
+      {total === 0 ? (
+        <EmptyState>
+          今日のタスクはありません。
+          <br />
+          「リスト」で「今日やる」を押すと、ここに追加できます。
+        </EmptyState>
+      ) : (
+        <ul className="divide-y divide-stone-100 overflow-hidden rounded-2xl bg-white ring-1 ring-stone-200">
+          {items.map((item) => (
+            <ChecklistRow
+              key={item.task.id}
+              item={item}
+              onOpen={() => setCompleting(item.task)}
+              onCheck={() => actions.check(item.task)}
+            />
+          ))}
+          {done.map((task) => (
+            <DoneRow key={task.id} task={task} onUncheck={() => actions.uncheck(task)} onArchive={() => actions.archive(task)} />
+          ))}
+        </ul>
+      )}
+      {total > 0 && items.length === 0 && <p className="mt-3 text-center text-sm text-stone-500">今日のタスクはすべて完了しました。</p>}
+    </section>
+  )
 
-      <section className="mt-6">
-        <h2 className="mb-2 flex items-baseline justify-between px-1 text-sm font-semibold text-stone-600">
-          <span>今日のチェックリスト</span>
-          {total > 0 && (
-            <span className="tabular-nums text-stone-500">
-              {doneToday.length} / {total} 完了
-            </span>
-          )}
-        </h2>
-        {total > 0 && (
-          <div className="mb-3 h-1 overflow-hidden rounded-full bg-stone-200">
-            <div className="h-full rounded-full bg-ink transition-all" style={{ width: `${(doneToday.length / total) * 100}%` }} />
-          </div>
-        )}
-        {total === 0 ? (
-          <EmptyState>
-            今日のタスクはありません。
-            <br />
-            「リスト」で「今日やる」を押すと、ここに追加できます。
-          </EmptyState>
-        ) : (
-          <ul className="divide-y divide-stone-100 overflow-hidden rounded-2xl bg-white ring-1 ring-stone-200">
-            {items.map((item) => (
-              <ChecklistRow
-                key={item.task.id}
-                item={item}
-                onOpen={() => setCompleting(item.task)}
-                onCheck={() => handleCheck(item.task)}
-              />
-            ))}
-            {doneToday.map((task) => (
-              <DoneRow key={task.id} task={task} />
-            ))}
-          </ul>
-        )}
-        {total > 0 && items.length === 0 && <p className="mt-3 text-center text-sm text-stone-500">今日のタスクはすべて完了しました。</p>}
-      </section>
-
-      <Upcoming onOpen={setCompleting} />
-
+  const sheets = (
+    <>
       {completing && <CompleteSheet task={completing} onClose={() => setCompleting(null)} />}
       {adding === 'first' && <AddFirstLapSheet onClose={() => setAdding(null)} />}
       {adding === 'assignment' && <AddAssignmentSheet onClose={() => setAdding(null)} />}
       {adding === 'redo' && <AddRedoSheet onClose={() => setAdding(null)} />}
+    </>
+  )
+
+  // PC版（v0.5〜）：左にチェックリスト、右に今日提出の課題・予定・これから
+  if (pc) {
+    return (
+      <>
+        {title}
+        <div className="grid grid-cols-[minmax(0,1fr)_22rem] items-start gap-6">
+          <div className="space-y-6">
+            {materials.length === 0 && <StartGuide />}
+            {addButtons}
+            {checklist}
+          </div>
+          <div className="space-y-6">
+            <DueTodayAssignments />
+            <Countdown />
+            <Upcoming onOpen={setCompleting} defaultOpen />
+          </div>
+        </div>
+        {sheets}
+      </>
+    )
+  }
+
+  return (
+    <>
+      {title}
+      <Countdown />
+      {materials.length === 0 && (
+        <div className="mt-5">
+          <StartGuide />
+        </div>
+      )}
+      <div className="mt-5">
+        <DueTodayAssignments />
+      </div>
+      <div className="mt-4">{addButtons}</div>
+      <div className="mt-6">{checklist}</div>
+      <div className="mt-6">
+        <Upcoming onOpen={setCompleting} />
+      </div>
+      {sheets}
     </>
   )
 }

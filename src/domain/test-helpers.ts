@@ -51,6 +51,10 @@ export function makeTask(overrides: Partial<Task> = {}): Task {
     createdAt: 0,
     result: null,
     plannedFor: null,
+    lap: null,
+    before: null,
+    createdBy: null,
+    archived: false,
     ...overrides,
   }
 }
@@ -88,7 +92,19 @@ export function applyChanges(state: State, cs: ChangeSet, now = 0): State {
     cs.updateTasks,
   )
   for (const t of cs.createTasks) {
-    tasks.push({ ...t, id: `new${++idSeq}`, status: 'open', completedAt: null, createdAt: now, result: null, plannedFor: null })
+    tasks.push({
+      ...t,
+      id: `new${++idSeq}`,
+      status: 'open',
+      completedAt: null,
+      createdAt: now,
+      result: null,
+      plannedFor: null,
+      lap: null,
+      before: null,
+      createdBy: t.createdBy ?? null,
+      archived: false,
+    })
   }
 
   const units = state.units.map((u) =>

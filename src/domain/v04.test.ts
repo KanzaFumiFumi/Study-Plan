@@ -28,12 +28,13 @@ describe('周目の表示', () => {
   })
 
   test('単元のタスクは「何周目か」（未着手なら一周目、2周終えていれば三周目）。解き直し・課題・暗記はそのまま', () => {
-    expect(taskLabel({ type: 'first' }, { lapCount: 0 })).toBe('一周目')
-    expect(taskLabel({ type: 'cycle' }, { lapCount: 1 })).toBe('二周目')
-    expect(taskLabel({ type: 'exam' }, { lapCount: 2 })).toBe('三周目')
-    expect(taskLabel({ type: 'redo' }, { lapCount: 2 })).toBe('解き直し')
-    expect(taskLabel({ type: 'assignment' })).toBe('課題')
-    expect(taskLabel({ type: 'memorize' })).toBe('暗記')
+    const open = { status: 'open', lap: null } as const
+    expect(taskLabel({ ...open, type: 'first' }, { lapCount: 0 })).toBe('一周目')
+    expect(taskLabel({ ...open, type: 'cycle' }, { lapCount: 1 })).toBe('二周目')
+    expect(taskLabel({ ...open, type: 'exam' }, { lapCount: 2 })).toBe('三周目')
+    expect(taskLabel({ ...open, type: 'redo' }, { lapCount: 2 })).toBe('解き直し')
+    expect(taskLabel({ ...open, type: 'assignment' })).toBe('課題')
+    expect(taskLabel({ ...open, type: 'memorize' })).toBe('暗記')
   })
 })
 

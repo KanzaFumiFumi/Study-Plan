@@ -69,33 +69,38 @@ export function ExamsScreen() {
         予定
       </ScreenTitle>
 
-      <Calendar onSelect={setDay} />
+      {/* PC版（v0.5〜）：左にカレンダー、右に予定の一覧 */}
+      <div className="pc:grid pc:grid-cols-[minmax(0,1fr)_22rem] pc:items-start pc:gap-6">
+        <Calendar onSelect={setDay} />
 
-      <h2 className="mt-6 mb-2 px-1 text-sm font-semibold text-stone-600">これからの予定</h2>
-      {upcoming.length === 0 ? (
-        <EmptyState>
-          予定がありません。
-          <br />
-          試験・大会・旅行・趣味など、目標の日を登録すると、範囲の単元のタスクが自動で作られます。
-        </EmptyState>
-      ) : (
-        <ul className="space-y-3">
-          {upcoming.map((exam) => (
-            <ExamCard key={exam.id} exam={exam} onOpen={() => setEditing(exam)} />
-          ))}
-        </ul>
-      )}
+        <div>
+          <h2 className="mt-6 mb-2 px-1 text-sm font-semibold text-stone-600 pc:mt-0">これからの予定</h2>
+          {upcoming.length === 0 ? (
+            <EmptyState>
+              予定がありません。
+              <br />
+              試験・大会・旅行・趣味など、目標の日を登録すると、範囲の単元のタスクが自動で作られます。
+            </EmptyState>
+          ) : (
+            <ul className="space-y-3">
+              {upcoming.map((exam) => (
+                <ExamCard key={exam.id} exam={exam} onOpen={() => setEditing(exam)} />
+              ))}
+            </ul>
+          )}
 
-      {past.length > 0 && (
-        <details className="mt-6">
-          <summary className="cursor-pointer text-sm text-stone-500">終わった予定（{past.length}）</summary>
-          <ul className="mt-3 space-y-3 opacity-70">
-            {past.map((exam) => (
-              <ExamCard key={exam.id} exam={exam} onOpen={() => setEditing(exam)} />
-            ))}
-          </ul>
-        </details>
-      )}
+          {past.length > 0 && (
+            <details className="mt-6">
+              <summary className="cursor-pointer text-sm text-stone-500">終わった予定（{past.length}）</summary>
+              <ul className="mt-3 space-y-3 opacity-70">
+                {past.map((exam) => (
+                  <ExamCard key={exam.id} exam={exam} onOpen={() => setEditing(exam)} />
+                ))}
+              </ul>
+            </details>
+          )}
+        </div>
+      </div>
 
       {day && (
         <DaySheet

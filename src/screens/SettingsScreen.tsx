@@ -106,7 +106,7 @@ export function SettingsScreen({ user }: { user: User }) {
   return (
     <>
       <ScreenTitle>設定</ScreenTitle>
-      <div className="space-y-4">
+      <div className="space-y-4 pc:max-w-2xl">
         <button
           type="button"
           onClick={() => nav('guide')}

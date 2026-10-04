@@ -168,7 +168,7 @@ const TIPS: [string, string][] = [
 export function GuideScreen({ onBack }: { onBack: () => void }) {
   const { settings } = useData()
   return (
-    <>
+    <div className="pc:max-w-3xl">
       <BackButton onClick={onBack}>戻る</BackButton>
       <ScreenTitle>使い方</ScreenTitle>
       <p className="text-sm leading-relaxed text-stone-600">
@@ -232,6 +232,6 @@ export function GuideScreen({ onBack }: { onBack: () => void }) {
           ))}
         </dl>
       </Section>
-    </>
+    </div>
   )
 }

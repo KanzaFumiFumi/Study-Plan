@@ -38,7 +38,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         <div
           key={toast.id}
           role="status"
-          className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] z-50 flex justify-center px-4"
+          className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] z-50 pc:bottom-8 pc:left-56 flex justify-center px-4"
         >
           <p
             className={`max-w-md rounded-xl px-4 py-2.5 text-sm text-white shadow-lg ${

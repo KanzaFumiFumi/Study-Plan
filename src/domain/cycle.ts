@@ -41,7 +41,18 @@ export function completeUnitTask(input: CompleteUnitTaskInput): CompleteUnitTask
   if (task.materialId !== unit.materialId || task.unitId !== unit.id) throw new Error('タスクと単元が一致しません')
 
   const changes = emptyChangeSet()
-  changes.updateTasks.push({ id: task.id, patch: { status: 'done', completedAt: now, result: { remainingMarks } } })
+  // 何周目を終えたかと、完了する前の単元の記録を残す（v0.5〜。チェックを外したときに元に戻す）
+  const { lapCount, lastDoneAt } = unit
+  changes.updateTasks.push({
+    id: task.id,
+    patch: {
+      status: 'done',
+      completedAt: now,
+      result: { remainingMarks },
+      lap: lapCount + 1,
+      before: { unit: { lapCount, remainingMarks: unit.remainingMarks, graduated: unit.graduated, lastDoneAt } },
+    },
+  })
 
   const graduated = remainingMarks === 0
   changes.updateUnits.push({
@@ -60,6 +71,7 @@ export function completeUnitTask(input: CompleteUnitTaskInput): CompleteUnitTask
       rangeId: null,
       examIds: [],
       dueDate: addDays(today, settings.cycleIntervalDays),
+      createdBy: task.id,
     }
     changes.createTasks.push(nextTask)
   }
