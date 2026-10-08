@@ -134,27 +134,26 @@ describe('チェックを外す（周回系・復習系）', () => {
 })
 
 describe('チェックを外す（暗記・課題）', () => {
-  test('暗記：範囲の段階・復習日が元に戻り、次の復習タスクは消える', () => {
-    const range = makeRange({ started: true, step: 1, nextReviewAt: today, lastResult: { known: 5, half: 1, unknown: 0 } })
+  test('暗記（v0.6）：範囲の周回数が元に戻る。カレンダーに入れたほかの予定はそのまま', () => {
+    const range = makeRange({ lapCount: 1, lastDoneAt: '2026-10-01' })
     const task = makeTask({ id: 'k1', type: 'memorize', materialId: 'm2', unitId: null, rangeId: 'r1', dueDate: today })
-    const s0 = stateWith({ ranges: [range], tasks: [task] })
-    const done = completeMemorizeTask({
-      task,
-      range,
-      material: wordBook,
-      openTasks: [task],
-      settings,
-      today,
-      now: startOfToday,
-      result: { known: 10, half: 0, unknown: 0 },
-    })
-    const s1 = applyChanges(s0, done.changes)
-    expect(s1.ranges[0].step).toBe(2)
+    const planned = makeTask({ id: 'k2', type: 'memorize', materialId: 'm2', unitId: null, rangeId: 'r1', dueDate: '2026-10-11' })
+    const s0 = stateWith({ ranges: [range], tasks: [task, planned] })
+    const s1 = applyChanges(s0, completeMemorizeTask({ task, range, material: wordBook, today, now: startOfToday }).changes)
+    expect(s1.ranges[0].lapCount).toBe(2)
 
     const doneTask = s1.tasks.find((t) => t.id === 'k1')!
     const s2 = applyChanges(s1, uncompleteTask({ task: doneTask, range: s1.ranges[0], openTasks: openTasksOf(s1), doneTasks: [doneTask] }))
     expect(s2.ranges).toEqual([range])
-    expect(s2.tasks).toEqual([task])
+    expect(s2.tasks).toEqual([task, planned])
+  })
+
+  test('v0.5 までの暗記の完了（周回数を数えていない）は、範囲は変えずにタスクだけ戻す', () => {
+    const range = makeRange({ lapCount: 2 })
+    const old = makeTask({ id: 'k0', type: 'memorize', materialId: 'm2', unitId: null, rangeId: 'r1', status: 'done', completedAt: 1 })
+    const changes = uncompleteTask({ task: old, range, openTasks: [], doneTasks: [old] })
+    expect(changes.updateRanges).toEqual([])
+    expect(changes.updateTasks[0].patch).toMatchObject({ status: 'open' })
   })
 
   test('単元のない課題は、未完了に戻すだけ', () => {

@@ -9,6 +9,53 @@
   /* テーマカラー（黒）と背景。配色を変えるときはここを直す（bg-ink / text-ink / bg-paper などで使う） */
   --color-ink: #1c1b19;
   --color-paper: #f5f4f0;
+
+  /* 動き（v0.6〜）。すべて motion-safe: をつけて使い、「視差効果を減らす」設定の端末では動かさない */
+  --ease-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-rise: rise 0.36s var(--ease-soft) both;
+  --animate-sheet-up: sheet-up 0.32s var(--ease-soft) both;
+  --animate-fade-in: fade-in 0.2s ease-out both;
+  --animate-pop: pop 0.24s var(--ease-soft) both;
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes sheet-up {
+    from {
+      opacity: 0;
+      transform: translateY(32px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes pop {
+    0% {
+      transform: scale(0.6);
+    }
+    60% {
+      transform: scale(1.12);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
 }
 
 html,
@@ -26,9 +73,32 @@ body {
   letter-spacing: 0.02em;
 }
 
+::selection {
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+
+/* キーボードで操作したときだけ、黒い輪郭でどこにいるか示す（PC版で Tab を使うとき） */
+:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
 /* iOS は 16px 未満の入力欄にフォーカスすると画面を拡大するので、入力欄は常に 16px 以上にする */
 input,
 select,
 textarea {
   font-size: 16px;
+}
+
+/* 数字の桁をそろえる（日付・件数・残り日数） */
+.num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+/* スクロールバーを細く（PC版の選ぶ欄など） */
+.thin-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #d6d3d1 transparent;
 }

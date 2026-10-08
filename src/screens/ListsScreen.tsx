@@ -20,17 +20,17 @@ import { CompleteSheet } from './today/CompleteSheet.tsx'
 // v0.5：四角で完了・チェックを外す。完了したものは今日のうちはチェック済みで残り、「アーカイブへ」か次の日にアーカイブへ。
 
 type AddSheet = 'first' | 'assignment' | 'redo'
-type ListAction = { label: string; sheet: AddSheet } | { label: string; screen: 'shelf' | 'exams' }
+type ListAction = { label: string; sheet: AddSheet } | { label: string; screen: 'shelf' | 'home' }
 
 /** リストの説明と、リストの下に出す入り口（追加のシート／別の画面へ） */
 function listInfo(key: ListKey): { description: string; actions: ListAction[] } {
   if (key === 'assignment') return { description: '締切のある提出物', actions: [{ label: '＋ 課題を追加', sheet: 'assignment' }] }
   if (key === 'memorize') {
     return {
-      description: '間隔を広げて復習。完了すると次が自動でできる',
+      description: 'カレンダーで日付を決めた暗記。四角を押すだけで完了し、その範囲の周回数が1増える',
       actions: [
-        { label: '予定のカレンダーで日付を割り当てる', screen: 'exams' },
-        { label: '本棚で範囲を開始', screen: 'shelf' },
+        { label: 'ホームのカレンダーで日付を割り当てる', screen: 'home' },
+        { label: '本棚で範囲ごとの周回を見る', screen: 'shelf' },
       ],
     }
   }
@@ -87,7 +87,7 @@ function Card({ task, onOpen, onCheck }: { task: Task; onOpen: () => void; onChe
   }
 
   return (
-    <li className="flex rounded-xl bg-white shadow-xs ring-1 ring-stone-200">
+    <li className="flex rounded-2xl bg-white shadow-[0_1px_2px_rgba(28,27,25,0.05)] ring-1 ring-stone-200/80 transition pc:hover:ring-stone-300">
       <button
         type="button"
         onClick={onCheck}
@@ -97,9 +97,9 @@ function Card({ task, onOpen, onCheck }: { task: Task; onOpen: () => void; onChe
         <CheckBox checked={false} />
       </button>
       <div className="min-w-0 flex-1">
-        <button type="button" onClick={onOpen} className="w-full rounded-tr-xl px-2 pt-3 pb-2 text-left active:bg-stone-50">
+        <button type="button" onClick={onOpen} className="w-full rounded-tr-2xl px-2 pt-3 pb-2 text-left active:bg-stone-50">
           {label && <span className="block truncate text-[11px] text-stone-500">{label}</span>}
-          <span className="block text-sm leading-snug font-medium">{title}</span>
+          <span className="block text-sm leading-snug font-semibold">{title}</span>
         </button>
         <div className="flex flex-wrap items-center gap-1 px-2 pr-3 pb-3">
           {overdueDays > 0 ? (
@@ -138,7 +138,7 @@ function DoneCard({ task, onUncheck, onArchive }: { task: Task; onUncheck: () =>
   const view = viewTask(task, data)
   const { label, title } = cardText(task, view)
   return (
-    <li className="flex items-center gap-2 rounded-xl bg-white/70 pr-3 ring-1 ring-stone-200">
+    <li className="flex items-center gap-2 rounded-2xl bg-white/60 pr-3 ring-1 ring-stone-200/70">
       <button
         type="button"
         onClick={onUncheck}
@@ -185,11 +185,11 @@ export function ListsScreen() {
   const selector = (
     <nav
       aria-label="リストを選ぶ"
-      className="max-h-64 overflow-y-auto rounded-2xl bg-white ring-1 ring-stone-200 pc:sticky pc:top-6 pc:max-h-[calc(100dvh-8rem)]"
+      className="thin-scroll max-h-64 overflow-y-auto rounded-3xl bg-white ring-1 ring-stone-200/80 pc:sticky pc:top-8 pc:max-h-[calc(100dvh-8rem)]"
     >
       {LIST_GROUPS.map((group) => (
         <div key={group}>
-          <p className="sticky top-0 z-10 border-b border-stone-100 bg-stone-50 px-4 py-1.5 text-[11px] font-semibold tracking-wider text-stone-500">
+          <p className="sticky top-0 z-10 border-b border-stone-100 bg-stone-50/95 px-5 py-1.5 text-[11px] font-bold tracking-[0.14em] text-stone-500 backdrop-blur">
             {LIST_GROUP_LABEL[group]}
           </p>
           {LIST_DEFS.filter((d) => d.group === group).map((d) => {
@@ -201,7 +201,7 @@ export function ListsScreen() {
                 type="button"
                 onClick={() => select(d.key)}
                 aria-current={active ? 'true' : undefined}
-                className={`flex w-full items-center justify-between px-4 py-2.5 text-left text-sm ${
+                className={`flex w-full items-center justify-between px-5 py-2.5 text-left text-sm transition ${
                   active ? 'bg-ink font-semibold text-white' : 'text-stone-800 active:bg-stone-100 pc:hover:bg-stone-50'
                 }`}
               >
@@ -219,11 +219,11 @@ export function ListsScreen() {
   )
 
   const list = (
-    <section aria-label={`${LIST_GROUP_LABEL[def.group]}の${def.label}のリスト`} className="rounded-2xl bg-stone-200/70 p-2.5">
+    <section aria-label={`${LIST_GROUP_LABEL[def.group]}の${def.label}のリスト`} className="rounded-3xl bg-stone-200/60 p-3">
       <header className="px-1 pb-2.5">
         <div className="flex items-center gap-2">
-          <h2 className="font-bold tracking-wide">{def.label}</h2>
-          <span className="text-sm tabular-nums text-stone-500">{tasks.length}</span>
+          <h2 className="text-lg font-bold tracking-wide">{def.label}</h2>
+          <span className="num text-sm text-stone-500">{tasks.length}</span>
           <span className="ml-auto">
             <Badge tone={def.group === 'assignment' ? 'plain' : 'outline'}>{LIST_GROUP_LABEL[def.group]}</Badge>
           </span>
@@ -262,7 +262,7 @@ export function ListsScreen() {
           key={action.label}
           type="button"
           onClick={() => ('sheet' in action ? setAdding(action.sheet) : nav(action.screen))}
-          className="mt-2 block w-full rounded-xl px-2 py-2 text-left text-sm text-stone-600 active:bg-stone-300/60"
+          className="mt-2 block w-full rounded-xl px-2 py-2 text-left text-sm font-medium text-stone-600 transition active:bg-stone-300/60 pc:hover:bg-stone-300/40"
         >
           {action.label}
           {'screen' in action && ' ›'}
@@ -273,7 +273,7 @@ export function ListsScreen() {
 
   return (
     <>
-      <ScreenTitle action={<span className="text-sm text-stone-500">未完了 {total}件</span>}>リスト</ScreenTitle>
+      <ScreenTitle eyebrow={`未完了 ${total}件`}>リスト</ScreenTitle>
 
       {pc ? (
         // PC版（v0.5〜）：左にリストを選ぶ欄、右に選んだリスト

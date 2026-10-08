@@ -3,7 +3,10 @@ import { useData } from '../data/store.tsx'
 import { viewTask } from '../data/taskView.ts'
 import { sendToArchive, uncompleteTask } from '../domain/archive.ts'
 import { completePlainTask } from '../domain/cycle.ts'
+import { lapLabel } from '../domain/labels.ts'
+import { completeMemorizeTask } from '../domain/memorize.ts'
 import type { Task } from '../domain/types.ts'
+import { useToday } from '../hooks/useToday.ts'
 import { useToast } from './Toast.tsx'
 
 /** チェックリストの四角 */
@@ -11,7 +14,7 @@ export function CheckBox({ checked }: { checked: boolean }) {
   return (
     <span
       className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${
-        checked ? 'bg-ink text-white' : 'bg-white ring-2 ring-stone-300'
+        checked ? 'bg-ink text-white motion-safe:animate-pop' : 'bg-white ring-2 ring-stone-300'
       }`}
       aria-hidden
     >
@@ -54,55 +57,61 @@ export function ArchiveButton({ onClick }: { onClick: () => void }) {
 }
 
 /**
- * 今日のチェックリストとリストで共通の操作（v0.5〜）。
- * - check：単元にも範囲にも紐づかない課題はそのまま完了。数字が要るものは openSheet（完了のシート）を開く
+ * ホームのチェックリスト・リスト・アーカイブで共通の操作（v0.5〜）。
+ * - check：単元にも範囲にも紐づかない課題と、暗記（v0.6〜、入力なし）はそのまま完了。残りの印の数が要るものは openSheet（完了のシート）を開く
  * - uncheck：チェックを外して未完了に戻す（単元・範囲の記録も完了する前に戻す）
+ * - restore：アーカイブから未完了に戻す（v0.6〜。uncheck と同じで、すべての完了済みと照らし合わせる）
  * - archive：完了済みをアーカイブへ送る（リストから消える）
  */
 export function useTaskActions(openSheet: (task: Task) => void) {
   const data = useData()
+  const today = useToday()
   const toast = useToast()
 
   function check(task: Task) {
     const view = viewTask(task, data)
-    if (view.unit || view.range) {
+    if (view.unit) {
       openSheet(task)
+      return
+    }
+    if (view.range && view.material) {
+      const { changes, lap, finished } = completeMemorizeTask({ task, range: view.range, material: view.material, today, now: Date.now() })
+      saveChangeSet(data.uid, changes)
+      toast(finished ? `「${view.range.label}」が目標の${view.material.targetLaps}周を終えました` : `${lapLabel(lap)}が終わりました`)
       return
     }
     saveChangeSet(data.uid, completePlainTask(task, Date.now()))
     toast('完了しました')
   }
 
-  function uncheck(task: Task) {
+  function reopen(task: Task, doneTasks: Task[], done: string) {
     const view = viewTask(task, data)
     let changes
     try {
-      changes = uncompleteTask({
-        task,
-        unit: view.unit,
-        range: view.range,
-        openTasks: data.openTasks,
-        doneTasks: data.doneToday,
-      })
+      changes = uncompleteTask({ task, unit: view.unit, range: view.range, openTasks: data.openTasks, doneTasks })
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'チェックを外せませんでした', 'error')
+      toast(e instanceof Error ? e.message : '戻せませんでした', 'error')
       return
     }
-    // 入力した数字と記録が元に戻るので、単元・範囲のタスクだけ確かめる
+    // 記録が元に戻るときだけ確かめる
+    const changesRecord = changes.updateUnits.length > 0 || changes.updateRanges.length > 0
     if (
-      (view.unit || view.range) &&
-      !window.confirm('チェックを外して、未完了に戻しますか？\n（単元・範囲の記録も完了する前に戻り、自動でできた次のタスクは消えます）')
+      changesRecord &&
+      !window.confirm('未完了に戻しますか？\n（単元・範囲の周回の記録も完了する前に戻り、自動でできた次の周回は消えます）')
     ) {
       return
     }
     saveChangeSet(data.uid, changes)
-    toast('チェックを外しました')
+    toast(done)
   }
 
-  function archive(task: Task) {
-    saveChangeSet(data.uid, sendToArchive(task))
-    toast('アーカイブへ送りました')
+  return {
+    check,
+    uncheck: (task: Task) => reopen(task, data.doneToday, 'チェックを外しました'),
+    restore: (task: Task, doneTasks: Task[]) => reopen(task, doneTasks, '未完了に戻しました'),
+    archive(task: Task) {
+      saveChangeSet(data.uid, sendToArchive(task))
+      toast('アーカイブへ送りました')
+    },
   }
-
-  return { check, uncheck, archive }
 }

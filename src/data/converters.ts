@@ -2,6 +2,7 @@ import { Timestamp, type DocumentData } from 'firebase/firestore'
 import { isISODate } from '../domain/date.ts'
 import {
   DEFAULT_SETTINGS,
+  DEFAULT_TARGET_LAPS,
   type CompletionBefore,
   type Exam,
   type Material,
@@ -52,6 +53,8 @@ export function toMaterial(id: string, d: DocumentData): Material {
     archived: d.archived === true,
     // order は v0.4 で追加。v0.3 までの教材にはないので、作った時刻を並び順として使う
     order: num(d.order, createdAt),
+    // targetLaps は v0.6 で追加（暗記系の目標の周回数）
+    targetLaps: typeof d.targetLaps === 'number' && Number.isInteger(d.targetLaps) && d.targetLaps >= 1 ? d.targetLaps : DEFAULT_TARGET_LAPS,
     createdAt,
   }
 }
@@ -70,15 +73,14 @@ export function toUnit(id: string, materialId: string, d: DocumentData): Unit {
 }
 
 export function toRange(id: string, materialId: string, d: DocumentData): Range {
+  // v0.6 で暗記の仕組みを変えた。v0.5 までの started・step・nextReviewAt・lastResult は読まない（データには残る）
   return {
     id,
     materialId,
     label: str(d.label),
     order: num(d.order, 0),
-    started: d.started === true,
-    step: num(d.step, 0),
-    nextReviewAt: dateOrNull(d.nextReviewAt),
-    lastResult: memorizeResult(d.lastResult),
+    lapCount: num(d.lapCount, 0),
+    lastDoneAt: dateOrNull(d.lastDoneAt),
   }
 }
 
@@ -137,26 +139,20 @@ function completionBefore(v: unknown): CompletionBefore | null {
       lastDoneAt: dateOrNull(u.lastDoneAt),
     }
   }
-  if (o.range && typeof o.range === 'object') {
+  // 範囲は v0.6 の形（lapCount）だけ読む。v0.5 の形（step など）は周回数を数えていないので戻すものがない
+  if (o.range && typeof o.range === 'object' && typeof (o.range as Record<string, unknown>).lapCount === 'number') {
     const r = o.range as Record<string, unknown>
-    before.range = {
-      started: r.started === true,
-      step: num(r.step, 0),
-      nextReviewAt: dateOrNull(r.nextReviewAt),
-      lastResult: memorizeResult(r.lastResult),
-    }
+    before.range = { lapCount: num(r.lapCount, 0), lastDoneAt: dateOrNull(r.lastDoneAt) }
   }
   return before.unit || before.range ? before : null
 }
 
 export function toSettings(d: DocumentData | undefined): Settings {
   if (!d) return DEFAULT_SETTINGS
-  const intervals: unknown[] = Array.isArray(d.memorizeIntervals) ? d.memorizeIntervals : []
-  const memorizeIntervals = intervals.filter((x): x is number => typeof x === 'number' && x > 0)
+  // v0.5 までの memorizeIntervals（暗記の復習間隔）は v0.6 でなくしたので読まない
   return {
     cycleIntervalDays: num(d.cycleIntervalDays, DEFAULT_SETTINGS.cycleIntervalDays),
     examLeadDays: num(d.examLeadDays, DEFAULT_SETTINGS.examLeadDays),
-    memorizeIntervals: memorizeIntervals.length > 0 ? memorizeIntervals : DEFAULT_SETTINGS.memorizeIntervals,
   }
 }
 

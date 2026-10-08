@@ -27,9 +27,14 @@ export interface Material {
   archived: boolean
   /** 本棚での並び順（v0.4〜。小さいほど上）。v0.3 までの教材にはないので createdAt で補う */
   order: number
+  /** 暗記系で、範囲ごとに何周するか（v0.6〜）。周回系・復習系では使わない。ないときは DEFAULT_TARGET_LAPS */
+  targetLaps: number
   /** ミリ秒（Firestore では Timestamp） */
   createdAt: number
 }
+
+/** 暗記系の目標の周回数の初期値 */
+export const DEFAULT_TARGET_LAPS = 3
 
 /** 周回系・復習系の単元（materials/{materialId}/units/{id}）。materialId はパスから補う */
 export interface Unit {
@@ -45,23 +50,27 @@ export interface Unit {
   lastDoneAt: ISODate | null
 }
 
+/** v0.5 までの暗記の完了で入力した 知・半知・未知 の数（アーカイブの記録として表示するだけ） */
 export interface MemorizeResult {
   known: number
   half: number
   unknown: number
 }
 
-/** 暗記系の範囲（materials/{materialId}/ranges/{id}）。materialId はパスから補う */
+/**
+ * 暗記系の範囲（materials/{materialId}/ranges/{id}）。materialId はパスから補う。
+ * v0.6〜：間隔を広げる復習をやめ、範囲ごとに「何周したか」を数える。教材の目標の周回数に届いたら、その範囲は完了。
+ * いつやるかは、カレンダーで日付に割り当てる（v0.5 までの started・step・nextReviewAt・lastResult は使わない）。
+ */
 export interface Range {
   id: string
   materialId: string
   label: string
   order: number
-  started: boolean
-  /** 復習間隔の段階（0始まり） */
-  step: number
-  nextReviewAt: ISODate | null
-  lastResult: MemorizeResult | null
+  /** 終えた周回数（v0.6〜。それより前の範囲は 0） */
+  lapCount: number
+  /** 最後に終えた日（v0.6〜） */
+  lastDoneAt: ISODate | null
 }
 
 export interface UnitRef {
@@ -99,10 +108,10 @@ export type TaskStatus = 'open' | 'done'
 /** 完了時に入力した値（仕様への追加：周回ごとの記録を残すため） */
 export type TaskResult = { remainingMarks: number } | MemorizeResult
 
-/** 完了する前の単元・範囲の記録（v0.5〜）。チェックを外したときに、これに戻す */
+/** 完了する前の単元・範囲の記録（v0.5〜。範囲は v0.6〜）。チェックを外したときに、これに戻す */
 export interface CompletionBefore {
   unit?: Pick<Unit, 'lapCount' | 'remainingMarks' | 'graduated' | 'lastDoneAt'>
-  range?: Pick<Range, 'started' | 'step' | 'nextReviewAt' | 'lastResult'>
+  range?: Pick<Range, 'lapCount' | 'lastDoneAt'>
 }
 
 /** タスク（users/{uid}/tasks/{id}） */
@@ -140,17 +149,15 @@ export type NewTask = Pick<Task, 'type' | 'title' | 'materialId' | 'unitId' | 'r
   createdBy?: string
 }
 
-/** 設定（users/{uid}/settings/main） */
+/** 設定（users/{uid}/settings/main）。v0.6 で暗記の復習間隔（memorizeIntervals）はなくした（暗記は目標の周回数とカレンダーで決める） */
 export interface Settings {
   cycleIntervalDays: number
   examLeadDays: number
-  memorizeIntervals: number[]
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   cycleIntervalDays: 7,
   examLeadDays: 3,
-  memorizeIntervals: [1, 3, 7, 14, 30],
 }
 
 /**

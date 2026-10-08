@@ -84,3 +84,21 @@ export function formatShortDate(date: ISODate): string {
   const [, m, d] = date.split('-').map(Number)
   return `${m}/${d}(${WEEKDAYS[new Date(toUTCms(date)).getUTCDay()]})`
 }
+
+/** 曜日（`日`〜`土`） */
+export function weekdayOf(date: ISODate): string {
+  return WEEKDAYS[new Date(toUTCms(date)).getUTCDay()]
+}
+
+/** 表示用：`10月9日` */
+export function formatMonthDay(date: ISODate): string {
+  const [, m, d] = date.split('-').map(Number)
+  return `${m}月${d}日`
+}
+
+/** その日を含む週（日曜はじまり）の7日（v0.6〜、ホームの週の帯） */
+export function weekDates(date: ISODate): ISODate[] {
+  const ms = toUTCms(date)
+  const dow = new Date(ms).getUTCDay()
+  return Array.from({ length: 7 }, (_, i) => fromUTCms(ms + (i - dow) * DAY_MS))
+}

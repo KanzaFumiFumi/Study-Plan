@@ -21,13 +21,22 @@ function leadLabel(days: number): string {
 }
 
 /** 予定（試験・大会・旅行・趣味など）の追加（exam なし）と編集（exam あり）。保存すると 4.2 の処理でタスクを作る */
-export function ExamFormSheet({ exam, onClose }: { exam?: Exam; onClose: () => void }) {
+export function ExamFormSheet({
+  exam,
+  defaultDate,
+  onClose,
+}: {
+  exam?: Exam
+  /** 新しい予定の日付の初期値（ホームのカレンダーで選んだ日） */
+  defaultDate?: string
+  onClose: () => void
+}) {
   const { uid, exams, units, ranges, materials, openTasks, settings } = useData()
   const today = useToday()
   const toast = useToast()
   const [category, setCategory] = useState(exam?.category ?? EVENT_CATEGORIES[0])
   const [name, setName] = useState(exam?.name ?? '')
-  const [date, setDate] = useState(exam?.date ?? '')
+  const [date, setDate] = useState(exam?.date ?? defaultDate ?? '')
   const [leadDays, setLeadDays] = useState(exam?.leadDays ?? settings.examLeadDays)
   const [selectedUnits, setSelectedUnits] = useState<Set<string>>(() => new Set(exam?.unitRefs.map(unitKey) ?? []))
   const [selectedRanges, setSelectedRanges] = useState<Set<string>>(() => new Set(exam?.rangeRefs.map(rangeKey) ?? []))
@@ -97,6 +106,7 @@ export function ExamFormSheet({ exam, onClose }: { exam?: Exam; onClose: () => v
   return (
     <Sheet
       title={exam ? '予定を編集' : '予定を追加'}
+      subtitle="試験・大会・旅行・趣味など"
       onClose={onClose}
       footer={
         <Button className="w-full" disabled={!canSave} onClick={handleSave}>
@@ -132,7 +142,7 @@ export function ExamFormSheet({ exam, onClose }: { exam?: Exam; onClose: () => v
             options={leadOptions.map((d) => ({ value: d, label: leadLabel(d) }))}
           />
           {due && rangeCount > 0 && (
-            <p className="mt-2 text-xs text-stone-500">範囲の単元のタスクは {formatShortDate(due)} が期限になります。</p>
+            <p className="mt-2 text-xs text-stone-500">範囲のタスクは {formatShortDate(due)} が期限になります。</p>
           )}
         </div>
 
@@ -147,7 +157,9 @@ export function ExamFormSheet({ exam, onClose }: { exam?: Exam; onClose: () => v
         {hasMemorize && (
           <div>
             <p className="mb-1 text-sm font-medium text-stone-700">範囲：暗記</p>
-            <p className="mb-2 text-xs text-stone-500">未開始の範囲は、今日から復習が始まります。</p>
+            <p className="mb-2 text-xs text-stone-500">
+              カレンダーに入れた暗記があれば、その予定に向けたものにします。なければ、仕上げの期限に1回分を入れます。
+            </p>
             <RangePicker selected={selectedRanges} onChange={setSelectedRanges} alwaysShowMaterialIds={inRangeMaterialIds} />
           </div>
         )}

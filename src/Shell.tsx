@@ -6,17 +6,18 @@ import { NavContext } from './hooks/useNav.ts'
 import { SideNav, TAB_KEYS, TabBar, type TabKey } from './components/TabBar.tsx'
 import { ToastProvider } from './components/Toast.tsx'
 import { ArchiveScreen } from './screens/ArchiveScreen.tsx'
-import { ExamsScreen } from './screens/ExamsScreen.tsx'
 import { GuideScreen } from './screens/GuideScreen.tsx'
 import { ListsScreen } from './screens/ListsScreen.tsx'
 import { SettingsScreen } from './screens/SettingsScreen.tsx'
 import { ShelfScreen } from './screens/ShelfScreen.tsx'
-import { TodayScreen } from './screens/TodayScreen.tsx'
+import { HomeScreen } from './screens/HomeScreen.tsx'
 import { SyncStatus } from './components/SyncStatus.tsx'
 
 function tabFromHash(): TabKey {
-  const key = window.location.hash.slice(1) as TabKey
-  return TAB_KEYS.includes(key) ? key : 'today'
+  const key = window.location.hash.slice(1)
+  // v0.5 までの「今日」「予定」はホームにまとめた
+  if (key === 'today' || key === 'exams') return 'home'
+  return TAB_KEYS.includes(key as TabKey) ? (key as TabKey) : 'home'
 }
 
 function Screen({ tab, user, onBack }: { tab: TabKey; user: User; onBack: () => void }) {
@@ -24,14 +25,12 @@ function Screen({ tab, user, onBack }: { tab: TabKey; user: User; onBack: () => 
   if (tab === 'guide') return <GuideScreen onBack={onBack} />
   if (loading) return <p className="py-20 text-center text-sm text-stone-400">読み込み中…</p>
   switch (tab) {
-    case 'today':
-      return <TodayScreen />
+    case 'home':
+      return <HomeScreen />
     case 'lists':
       return <ListsScreen />
     case 'shelf':
       return <ShelfScreen />
-    case 'exams':
-      return <ExamsScreen />
     case 'archive':
       return <ArchiveScreen />
     case 'settings':
@@ -42,7 +41,7 @@ function Screen({ tab, user, onBack }: { tab: TabKey; user: User; onBack: () => 
 export function Shell({ user }: { user: User }) {
   const [tab, setTab] = useState<TabKey>(tabFromHash)
   // 使い方の画面から「戻る」ときの行き先
-  const [previousTab, setPreviousTab] = useState<TabKey>('today')
+  const [previousTab, setPreviousTab] = useState<TabKey>('home')
   // スマホ版・PC版（v0.5〜）。中身は同じで、並べ方だけを変える
   const [layout, setLayout] = useLayoutState()
 
@@ -57,7 +56,12 @@ export function Shell({ user }: { user: User }) {
     window.scrollTo(0, 0)
   }, [tab])
 
-  const screen = <Screen key={tab} tab={tab} user={user} onBack={() => setTab(previousTab)} />
+  // 画面を切り替えたら、ふわっと出す
+  const screen = (
+    <div key={tab} className="motion-safe:animate-fade-in">
+      <Screen tab={tab} user={user} onBack={() => setTab(previousTab)} />
+    </div>
+  )
 
   return (
     <DataProvider uid={user.uid}>
@@ -67,7 +71,7 @@ export function Shell({ user }: { user: User }) {
             {layout === 'pc' ? (
               <div className="min-h-full">
                 <SideNav current={tab} onChange={navigate} />
-                <main className="ml-56 px-8 pt-6 pb-12">
+                <main className="ml-60 px-10 pt-8 pb-16">
                   <div className="mx-auto max-w-6xl">
                     <SyncStatus />
                     {screen}

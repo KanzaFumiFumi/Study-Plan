@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { todayTasks, upcomingTasks } from './sort.ts'
+import { todayTasks, tasksDueOn } from './sort.ts'
 import { makeExam, makeTask } from './test-helpers.ts'
 import type { TaskType } from './types.ts'
 
@@ -62,27 +62,22 @@ describe('4.7 今日の一覧', () => {
   })
 })
 
-describe('これからのタスク（v0.2）', () => {
-  test('明日から7日後までを期限の早い順に。同じ日は種類の順。それより先は件数だけ', () => {
+describe('その日が期限のタスク（v0.6、ホームのカレンダー）', () => {
+  test('その日が期限の未完了タスクを種類の順に。完了済み・アーカイブした教材は除く', () => {
     const tasks = [
-      t('today', 'cycle', today),
-      t('d3-cycle', 'cycle', '2026-09-30'),
-      t('d3-first', 'first', '2026-09-30'),
-      t('d1', 'redo', '2026-09-28'),
-      t('d7', 'memorize', '2026-10-04'),
-      t('d8', 'cycle', '2026-10-05'),
-      t('d30', 'exam', '2026-10-27'),
-      t('done', 'cycle', '2026-09-29', { status: 'done' }),
-      t('hidden', 'cycle', '2026-09-29', { materialId: 'archived' }),
+      t('c', 'cycle', '2026-09-30'),
+      t('m', 'memorize', '2026-09-30'),
+      t('a', 'assignment', '2026-09-30', { materialId: null }),
+      t('other', 'first', '2026-10-01'),
+      t('done', 'cycle', '2026-09-30', { status: 'done' }),
+      t('hidden', 'cycle', '2026-09-30', { materialId: 'archived' }),
     ]
-    const { tasks: list, later } = upcomingTasks(tasks, today, 7, new Set(['archived']))
-    expect(list.map((x) => x.id)).toEqual(['d1', 'd3-first', 'd3-cycle', 'd7'])
-    expect(later).toBe(2)
+    expect(tasksDueOn(tasks, '2026-09-30', new Set(['archived'])).map((x) => x.id)).toEqual(['a', 'm', 'c'])
   })
 })
 
 describe('今日やる（v0.4）', () => {
-  test('「今日やる」と選んだタスクは、期限が先でも今日の一覧に入り、これからのタスクからは外れる', () => {
+  test('「今日やる」と選んだタスクは、期限が先でも今日の一覧に入り', () => {
     const tasks = [
       t('due', 'cycle', today),
       t('planned', 'redo', '2026-10-05', { plannedFor: today }),
@@ -94,6 +89,5 @@ describe('今日やる（v0.4）', () => {
       ['due', false],
       ['planned', true],
     ])
-    expect(upcomingTasks(tasks, today, 30).tasks.map((x) => x.id)).toEqual(['later', 'old-mark'])
   })
 })

@@ -3,7 +3,7 @@ import { completeUnitTask } from './cycle.ts'
 import { addDays } from './date.ts'
 import { applyExamSave } from './exam.ts'
 import { addAssignment, addFirstLaps } from './manual.ts'
-import { completeMemorizeTask, startRange } from './memorize.ts'
+import { completeMemorizeTask, scheduleRanges } from './memorize.ts'
 import { todayTasks } from './sort.ts'
 import { applyChanges, makeExam, makeMaterial, makeRange, makeUnit, openTasksOf, settings, type State } from './test-helpers.ts'
 
@@ -100,34 +100,27 @@ describe('完成の条件', () => {
     expect(openTasksOf(state)[0]).toMatchObject({ type: 'cycle', unitId: 'u3', dueDate: '2026-10-06' })
   })
 
-  test('暗記系の範囲で半知・未知が0のとき、次の復習日の間隔が広がる', () => {
+  test('暗記系（v0.6）：範囲をカレンダーで3回分割り当て、完了するたびに周回数が増え、3周で完了', () => {
     let state = initialState()
-    state = applyChanges(state, startRange({ range: state.ranges[0], material: leap, openTasks: [], today: day0 }).changes)
-
-    const review = (today: string, half: number, unknown: number) => {
-      const task = openTasksOf(state)[0]
-      expect(task.dueDate).toBe(today)
-      const { changes } = completeMemorizeTask({
-        task,
-        range: state.ranges[0],
-        material: leap,
-        openTasks: openTasksOf(state),
-        settings,
-        today,
-        now: 0,
-        result: { known: 100 - half - unknown, half, unknown },
-      })
-      state = applyChanges(state, changes)
-      return openTasksOf(state)[0].dueDate
+    const range = () => state.ranges[0]
+    for (const date of ['2026-09-28', '2026-10-01', '2026-10-05']) {
+      state = applyChanges(state, scheduleRanges({ targets: [{ range: range(), material: leap }], openTasks: openTasksOf(state), date }).changes)
     }
+    // 目標の3周ぶん入ったので、これ以上は入らない
+    expect(scheduleRanges({ targets: [{ range: range(), material: leap }], openTasks: openTasksOf(state), date: '2026-10-09' }).full).toBe(1)
 
-    // 間隔 [1, 3, 7, 14, 30]
-    expect(review('2026-09-27', 5, 2)).toBe('2026-09-28') // 据え置き：1日
-    expect(review('2026-09-28', 0, 0)).toBe('2026-10-01') // 段階1：3日
-    expect(review('2026-10-01', 0, 0)).toBe('2026-10-08') // 段階2：7日
-    expect(review('2026-10-08', 1, 0)).toBe('2026-10-15') // 据え置き：7日
-    expect(review('2026-10-15', 0, 0)).toBe('2026-10-29') // 段階3：14日
-    expect(state.ranges[0]).toMatchObject({ step: 3, nextReviewAt: '2026-10-29' })
-    expect(openTasksOf(state)).toHaveLength(1)
+    const doNext = (today: string) => {
+      const task = openTasksOf(state).find((t) => t.dueDate === today)!
+      const result = completeMemorizeTask({ task, range: range(), material: leap, today, now: 0 })
+      state = applyChanges(state, result.changes)
+      return result
+    }
+    expect(doNext('2026-09-28').lap).toBe(1)
+    expect(doNext('2026-10-01').lap).toBe(2)
+    const last = doNext('2026-10-05')
+    expect([last.lap, last.finished]).toEqual([3, true])
+    expect(range()).toMatchObject({ lapCount: 3, lastDoneAt: '2026-10-05' })
+    // 完了しても次のタスクは自動では作らない
+    expect(openTasksOf(state)).toEqual([])
   })
 })

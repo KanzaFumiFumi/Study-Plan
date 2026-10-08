@@ -137,15 +137,16 @@ describe('予定ごとの「何日前までに仕上げるか」（v0.2）', () 
   })
 })
 
-describe('予定の範囲に暗記の範囲を入れたとき（v0.2）', () => {
-  const leap = makeMaterial({ id: 'm2', name: 'LEAP', kind: 'memorize' })
-  const notStartedRange = makeRange({ id: 'r1', materialId: 'm2', label: 'No.1-100' })
-  const startedRange = makeRange({ id: 'r2', materialId: 'm2', label: 'No.101-200', started: true, step: 2 })
-  const ranges = [notStartedRange, startedRange]
+describe('予定の範囲に暗記の範囲を入れたとき（v0.2、v0.6 で変更）', () => {
+  const leap = makeMaterial({ id: 'm2', name: 'LEAP', kind: 'memorize', targetLaps: 3 })
+  const freeRange = makeRange({ id: 'r1', materialId: 'm2', label: 'No.1-100' })
+  const plannedRange = makeRange({ id: 'r2', materialId: 'm2', label: 'No.101-200', lapCount: 1 })
+  const finishedRange = makeRange({ id: 'r3', materialId: 'm2', label: 'No.201-300', lapCount: 3 })
+  const ranges = [freeRange, plannedRange, finishedRange]
   const rref = (rangeId: string) => ({ materialId: 'm2', rangeId })
   const allMaterials = [...materials, leap]
 
-  test('未開始の範囲は開始して、今日が期限の暗記タスクを作る（予定を紐づける）', () => {
+  test('予定が入っていない範囲には、単元と同じ期限（予定の日 − 何日前）の暗記タスクを1つ作る', () => {
     const trip = makeExam({ id: 'trip', category: '旅行', rangeRefs: [rref('r1')] })
     const { changes, created } = applyExamSave({
       exam: trip,
@@ -165,28 +166,37 @@ describe('予定の範囲に暗記の範囲を入れたとき（v0.2）', () => 
         unitId: null,
         rangeId: 'r1',
         examIds: ['trip'],
-        dueDate: today,
+        dueDate: '2026-11-17',
       },
     ])
-    expect(changes.updateRanges).toEqual([{ materialId: 'm2', rangeId: 'r1', patch: { started: true, nextReviewAt: today } }])
+    expect(changes.updateRanges).toEqual([])
   })
 
-  test('復習中の範囲は、暗記タスクに予定を足すだけ（復習の日は変えない）', () => {
-    const review = makeTask({ id: 'k2', type: 'memorize', materialId: 'm2', unitId: null, rangeId: 'r2', dueDate: '2026-10-05' })
+  test('カレンダーに入れた予定がある範囲は、そのタスクすべてに予定を足すだけ（日付は変えない）', () => {
+    const a1 = makeTask({ id: 'k2', type: 'memorize', materialId: 'm2', unitId: null, rangeId: 'r2', dueDate: '2026-10-05' })
+    const a2 = makeTask({ id: 'k3', type: 'memorize', materialId: 'm2', unitId: null, rangeId: 'r2', dueDate: '2026-10-12' })
     const trip = makeExam({ id: 'trip', rangeRefs: [rref('r2')] })
     const { changes, created, merged } = applyExamSave({
       exam: trip,
       units,
       ranges,
       materials: allMaterials,
-      openTasks: [review],
+      openTasks: [a1, a2],
       settings,
       today,
     })
     expect(created).toBe(0)
     expect(merged).toBe(1)
-    expect(changes.updateTasks).toEqual([{ id: 'k2', patch: { examIds: ['trip'] } }])
-    expect(changes.updateRanges).toEqual([])
+    expect(changes.updateTasks).toEqual([
+      { id: 'k2', patch: { examIds: ['trip'] } },
+      { id: 'k3', patch: { examIds: ['trip'] } },
+    ])
+  })
+
+  test('目標の周回数を終えた範囲には作らない', () => {
+    const trip = makeExam({ id: 'trip', rangeRefs: [rref('r3')] })
+    const { changes } = applyExamSave({ exam: trip, units, ranges, materials: allMaterials, openTasks: [], settings, today })
+    expect(changes.createTasks).toEqual([])
   })
 
   test('範囲から外した暗記の範囲は、examIds から外すだけ', () => {
@@ -205,11 +215,10 @@ describe('予定の範囲に暗記の範囲を入れたとき（v0.2）', () => 
     expect(changes.updateTasks).toEqual([{ id: 'k2', patch: { examIds: [] } }])
   })
 
-  test('予定の日が過ぎていれば、暗記の範囲も開始しない', () => {
+  test('予定の日が過ぎていれば、暗記のタスクも作らない', () => {
     const past = makeExam({ id: 'past', date: '2026-09-01', rangeRefs: [rref('r1')] })
     const { changes } = applyExamSave({ exam: past, units, ranges, materials: allMaterials, openTasks: [], settings, today })
     expect(changes.createTasks).toEqual([])
-    expect(changes.updateRanges).toEqual([])
   })
 })
 

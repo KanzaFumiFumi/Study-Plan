@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { reorderMaterials } from '../data/commands.ts'
 import { useData } from '../data/store.tsx'
+import { useNav } from '../hooks/useNav.ts'
+import { isRangeFinished } from '../domain/memorize.ts'
 import { groupBySubject, moveSubjectGroup, moveWithin, subjectOf } from '../domain/shelf.ts'
 import { MATERIAL_KIND_LABEL, hasUnits, type Material, type MaterialKind } from '../domain/types.ts'
-import { Badge, Button, EmptyState, ScreenTitle, Segmented } from '../components/ui.tsx'
+import { Button, Chevron, EmptyState, PlusIcon, ScreenTitle, Segmented } from '../components/ui.tsx'
 import { MaterialDetail } from './shelf/MaterialDetail.tsx'
 import { MaterialFormSheet } from './shelf/MaterialFormSheet.tsx'
 
@@ -57,16 +59,18 @@ function MoveButtons({ onUp, onDown, canUp, canDown, label }: { onUp: () => void
   )
 }
 
-/** 教材のカード（本棚と、アーカイブの「解き終えた教材」で使う） */
+/** 教材のカード（本棚と、アーカイブの「解き終えた教材」で使う）。action はカードの右下に出すボタン（アーカイブの「本棚に戻す」など） */
 export function MaterialCard({
   material,
   onOpen,
   move,
+  action,
 }: {
   material: Material
   onOpen: () => void
   /** 並べ替え中なら ↑↓ を出す */
   move?: { onUp: () => void; onDown: () => void; canUp: boolean; canDown: boolean }
+  action?: ReactNode
 }) {
   const { units, ranges } = useData()
   let summary: string
@@ -77,22 +81,29 @@ export function MaterialCard({
     summary = `単元${mine.length}・卒業${graduated}`
     progress = mine.length ? graduated / mine.length : 0
   } else {
+    // 暗記系（v0.6〜）：範囲ごとの周回数を目標と比べる
     const mine = ranges.filter((r) => r.materialId === material.id)
-    const started = mine.filter((r) => r.started).length
-    summary = `範囲${mine.length}・開始済み${started}`
-    progress = mine.length ? started / mine.length : 0
+    const finished = mine.filter((r) => isRangeFinished(r, material)).length
+    summary = `範囲${mine.length}・完了${finished}・目標${material.targetLaps}周`
+    progress = mine.length
+      ? mine.reduce((n, r) => n + Math.min(r.lapCount, material.targetLaps), 0) / (mine.length * material.targetLaps)
+      : 0
   }
+  const percent = Math.round(progress * 100)
 
   const body = (
     <>
       <div className="flex items-start justify-between gap-2">
-        <p className="font-semibold">{material.name}</p>
-        {material.subject && !move && <Badge>{material.subject}</Badge>}
+        <div className="min-w-0">
+          {material.subject && !move && <p className="mb-0.5 text-[11px] font-medium tracking-wider text-stone-500">{material.subject}</p>}
+          <p className="leading-snug font-bold">{material.name}</p>
+        </div>
+        {!move && <span className="num shrink-0 text-lg leading-none font-bold text-stone-300">{percent}<span className="text-xs">%</span></span>}
       </div>
-      <p className="mt-1 text-xs text-stone-500">{summary}</p>
+      <p className="mt-1.5 text-xs text-stone-500">{summary}</p>
       {!move && (
-        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-stone-100">
-          <div className="h-full rounded-full bg-ink" style={{ width: `${Math.round(progress * 100)}%` }} />
+        <div className="mt-3 h-1 overflow-hidden rounded-full bg-stone-100">
+          <div className="h-full rounded-full bg-ink transition-all duration-500" style={{ width: `${percent}%` }} />
         </div>
       )}
     </>
@@ -100,23 +111,25 @@ export function MaterialCard({
 
   if (move) {
     return (
-      <li className="flex items-center gap-3 rounded-2xl bg-white p-3 pl-4 ring-1 ring-stone-200">
+      <li className="flex items-center gap-3 rounded-2xl bg-white p-3 pl-4 ring-1 ring-stone-200/80">
         <div className="min-w-0 flex-1">{body}</div>
         <MoveButtons {...move} label={material.name} />
       </li>
     )
   }
   return (
-    <li>
-      <button type="button" onClick={onOpen} className="w-full rounded-2xl bg-white p-4 text-left ring-1 ring-stone-200 active:bg-stone-50">
+    <li className="flex flex-col rounded-3xl bg-white shadow-[0_1px_2px_rgba(28,27,25,0.04)] ring-1 ring-stone-200/80 transition pc:hover:-translate-y-0.5 pc:hover:shadow-md">
+      <button type="button" onClick={onOpen} className="w-full flex-1 rounded-3xl p-5 text-left transition active:scale-[0.99]">
         {body}
       </button>
+      {action && <div className="flex justify-end px-4 pb-4">{action}</div>}
     </li>
   )
 }
 
 export function ShelfScreen() {
   const { uid, materials } = useData()
+  const nav = useNav()
   const [kind, setKind] = useState<MaterialKind>('cycle')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
@@ -155,12 +168,28 @@ export function ShelfScreen() {
     setBySubject(!bySubject)
   }
 
+  const counts = Object.fromEntries(
+    (['cycle', 'review', 'memorize'] as const).map((k) => [k, materials.filter((m) => m.kind === k && !m.archived).length]),
+  ) as Record<MaterialKind, number>
+
+  function openArchive() {
+    // アーカイブの画面で「解き終えた教材」を開く
+    try {
+      localStorage.setItem('studyplan.archive.selected', 'materials')
+    } catch {
+      // 覚えられなくても、アーカイブは開ける
+    }
+    nav('archive')
+  }
+
   return (
     <>
       <ScreenTitle
+        eyebrow={`教材 ${materials.filter((m) => !m.archived).length}冊`}
         action={
-          <Button className="px-3 py-1.5" onClick={() => setAdding(true)}>
-            ＋ 教材
+          <Button className="flex items-center gap-1.5 px-4 py-2" onClick={() => setAdding(true)}>
+            <PlusIcon />
+            教材
           </Button>
         }
       >
@@ -173,7 +202,10 @@ export function ShelfScreen() {
             setKind(k)
             setReordering(false)
           }}
-          options={(['cycle', 'review', 'memorize'] as const).map((k) => ({ value: k, label: MATERIAL_KIND_LABEL[k] }))}
+          options={(['cycle', 'review', 'memorize'] as const).map((k) => ({
+            value: k,
+            label: counts[k] ? `${MATERIAL_KIND_LABEL[k]} ${counts[k]}` : MATERIAL_KIND_LABEL[k],
+          }))}
         />
       </div>
 
@@ -187,8 +219,8 @@ export function ShelfScreen() {
             type="button"
             onClick={() => setReordering(!reordering)}
             aria-pressed={reordering}
-            className={`rounded-lg px-3 py-1.5 text-sm font-semibold ring-1 ${
-              reordering ? 'bg-ink text-white ring-ink' : 'bg-white text-stone-700 ring-stone-300'
+            className={`rounded-full px-3.5 py-1.5 text-sm font-semibold ring-1 transition active:scale-95 ${
+              reordering ? 'bg-ink text-white ring-ink' : 'bg-white text-stone-700 ring-stone-300 pc:hover:bg-stone-50'
             }`}
           >
             {reordering ? '並べ替え完了' : '並べ替え'}
@@ -208,7 +240,7 @@ export function ShelfScreen() {
             <section key={group.subject || 'all'}>
               {bySubject && (
                 <div className="mb-2 flex items-center justify-between gap-2 px-1">
-                  <h2 className="text-sm font-bold tracking-wider text-stone-600">
+                  <h2 className="text-[13px] font-bold tracking-[0.12em] text-stone-500">
                     {group.subject} <span className="font-normal text-stone-400">{group.materials.length}</span>
                   </h2>
                   {reordering && groups.length > 1 && (
@@ -247,14 +279,17 @@ export function ShelfScreen() {
       </div>
 
       {archived.length > 0 && (
-        <details className="mt-6">
-          <summary className="cursor-pointer text-sm text-stone-500">アーカイブ済み（{archived.length}）</summary>
-          <ul className="mt-3 space-y-3 opacity-70 pc:grid pc:grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] pc:gap-3 pc:space-y-0">
-            {archived.map((m) => (
-              <MaterialCard key={m.id} material={m} onOpen={() => setSelectedId(m.id)} />
-            ))}
-          </ul>
-        </details>
+        <button
+          type="button"
+          onClick={openArchive}
+          className="mt-8 flex w-full items-center justify-between rounded-2xl px-4 py-3 text-sm text-stone-500 ring-1 ring-stone-200/80 transition active:bg-stone-100 pc:hover:bg-white"
+        >
+          <span>アーカイブした{MATERIAL_KIND_LABEL[kind]}の教材 {archived.length}冊</span>
+          <span className="flex items-center gap-1 font-semibold text-stone-700">
+            アーカイブで見る
+            <Chevron direction="right" />
+          </span>
+        </button>
       )}
 
       {adding && <MaterialFormSheet defaultKind={kind} onClose={() => setAdding(false)} onAdded={setSelectedId} />}

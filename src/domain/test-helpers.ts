@@ -5,7 +5,17 @@ import { DEFAULT_SETTINGS, type Exam, type Material, type Range, type Settings, 
 export const settings: Settings = DEFAULT_SETTINGS
 
 export function makeMaterial(overrides: Partial<Material> = {}): Material {
-  return { id: 'm1', name: '青チャート', subject: '数学', kind: 'cycle', archived: false, order: 0, createdAt: 0, ...overrides }
+  return {
+    id: 'm1',
+    name: '青チャート',
+    subject: '数学',
+    kind: 'cycle',
+    archived: false,
+    order: 0,
+    targetLaps: 3,
+    createdAt: 0,
+    ...overrides,
+  }
 }
 
 export function makeUnit(overrides: Partial<Unit> = {}): Unit {
@@ -28,10 +38,8 @@ export function makeRange(overrides: Partial<Range> = {}): Range {
     materialId: 'm2',
     label: 'No.1-100',
     order: 0,
-    started: false,
-    step: 0,
-    nextReviewAt: null,
-    lastResult: null,
+    lapCount: 0,
+    lastDoneAt: null,
     ...overrides,
   }
 }

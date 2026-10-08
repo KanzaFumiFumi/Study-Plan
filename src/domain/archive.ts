@@ -35,10 +35,11 @@ export interface UncompleteInput {
 }
 
 /**
- * チェックを外す（v0.5〜）：完了したタスクを未完了に戻し、完了でしたことを元に戻す。
+ * チェックを外す（v0.5〜）／アーカイブから未完了に戻す（v0.6〜）：完了したタスクを未完了に戻し、完了でしたことを元に戻す。
  * - 単元・範囲の記録を、完了する前（task.before）に戻す
- * - 完了で自動に作った次のタスク（createdBy がこのタスク）を消す。そのあと予定に入っていれば、その予定は引き継ぐ
- * 戻せないとき（同じ単元・範囲をこのあとにも完了した／あとから別のタスクを足した／v0.5 より前の完了）はエラーにする。
+ * - 単元：完了で自動に作った次の周回（createdBy がこのタスク）を消す。そこについた予定は引き継ぐ
+ * 戻せないとき（同じ単元・範囲をこのあとにも完了した／あとから別のタスクを足した／単元の完了の記録がない）はエラーにする。
+ * v0.5 までの暗記の完了は周回数を数えていなかったので、範囲の記録は変えずにタスクだけ戻す。
  */
 export function uncompleteTask(input: UncompleteInput): ChangeSet {
   const { task, unit, range, openTasks, doneTasks } = input
@@ -48,32 +49,22 @@ export function uncompleteTask(input: UncompleteInput): ChangeSet {
   let examIds = task.examIds
   let dueDate = task.dueDate
 
-  if (unit || range) {
-    const what = unit ? '単元' : '範囲'
-    const same = (t: Task) =>
-      t.materialId === task.materialId && (unit ? t.unitId === task.unitId : t.rangeId === task.rangeId)
-    const doneLater = doneTasks.some(
-      (t) => t.id !== task.id && t.status === 'done' && same(t) && (t.completedAt ?? 0) > (task.completedAt ?? 0),
-    )
-    const laterError = new Error(`この${what}は、このあとにも完了しています。新しい方からチェックを外してください`)
-    if (doneLater) throw laterError
+  const doneLater = (same: (t: Task) => boolean) =>
+    doneTasks.some((t) => t.id !== task.id && t.status === 'done' && same(t) && (t.completedAt ?? 0) > (task.completedAt ?? 0))
+  const laterError = (what: string) => new Error(`この${what}は、このあとにも完了しています。新しい方から戻してください`)
 
-    if (unit) {
-      const before = task.before?.unit
-      if (!before) throw new Error('v0.5 より前に完了したタスクは、チェックを外せません')
-      if (unit.lapCount !== before.lapCount + 1) throw laterError
-      changes.updateUnits.push({ materialId: unit.materialId, unitId: unit.id, patch: { ...before } })
-    } else if (range) {
-      const before = task.before?.range
-      if (!before) throw new Error('v0.5 より前に完了したタスクは、チェックを外せません')
-      changes.updateRanges.push({ materialId: range.materialId, rangeId: range.id, patch: { ...before } })
-    }
+  if (unit) {
+    const same = (t: Task) => t.materialId === task.materialId && t.unitId === task.unitId
+    const before = task.before?.unit
+    if (!before) throw new Error('完了する前の記録がないため戻せません（v0.5 より前に完了したタスク）')
+    if (doneLater(same) || unit.lapCount !== before.lapCount + 1) throw laterError('単元')
+    changes.updateUnits.push({ materialId: unit.materialId, unitId: unit.id, patch: { ...before } })
 
     for (const other of openTasks) {
       if (other.status !== 'open' || other.id === task.id || !same(other)) continue
-      // 完了で作った次のタスクだけ消せる（課題に切り替えたものや、あとから足したものは消さない）
+      // 完了で作った次の周回だけ消せる（課題に切り替えたものや、あとから足したものは消さない）
       if (other.createdBy !== task.id || other.type === 'assignment') {
-        throw new Error(`この${what}には、あとから追加した未完了のタスクがあるため、チェックを外せません`)
+        throw new Error('この単元には、あとから追加した未完了のタスクがあるため戻せません')
       }
       changes.deleteTasks.push(other.id)
       const added = other.examIds.filter((id) => !examIds.includes(id))
@@ -82,6 +73,10 @@ export function uncompleteTask(input: UncompleteInput): ChangeSet {
         dueDate = minDate(dueDate, other.dueDate)
       }
     }
+  } else if (range && task.before?.range) {
+    const same = (t: Task) => t.materialId === task.materialId && t.rangeId === task.rangeId
+    if (doneLater(same)) throw laterError('範囲')
+    changes.updateRanges.push({ materialId: range.materialId, rangeId: range.id, patch: { ...task.before.range } })
   }
 
   changes.updateTasks.push({

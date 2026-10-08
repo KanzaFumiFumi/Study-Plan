@@ -6,41 +6,22 @@ import { emptyChangeSet } from '../../domain/changeset.ts'
 import { completePlainTask, completeUnitTask } from '../../domain/cycle.ts'
 import { lapLabel } from '../../domain/labels.ts'
 import { addDays, daysBetween, formatShortDate } from '../../domain/date.ts'
-import { openTaskForRange, openTaskForUnit } from '../../domain/lookup.ts'
-import { completeMemorizeTask, intervalDays, nextStep } from '../../domain/memorize.ts'
+import { openTaskForUnit } from '../../domain/lookup.ts'
+import { completeMemorizeTask } from '../../domain/memorize.ts'
 import type { Task } from '../../domain/types.ts'
 import { useToday } from '../../hooks/useToday.ts'
 import { Sheet } from '../../components/Sheet.tsx'
 import { TaskBadge } from '../../components/TaskBadge.tsx'
 import { useToast } from '../../components/Toast.tsx'
-import { Button, inputClass } from '../../components/ui.tsx'
+import { Badge, Button, inputClass } from '../../components/ui.tsx'
 
 // 0〜9 はボタンで選べるので、ほとんどの場合キーボードは要らない
 const QUICK_MARKS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
-/** 数字だけを受け付ける入力欄の値を整数に（空なら null） */
-function parseCount(text: string): number | null {
-  if (!/^\d+$/.test(text.trim())) return null
-  return Number(text.trim())
-}
-
-function CountInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-center text-sm font-medium text-stone-700">{label}</span>
-      <input
-        className={`${inputClass} text-center text-lg tabular-nums`}
-        inputMode="numeric"
-        pattern="[0-9]*"
-        value={value}
-        onChange={(e) => onChange(e.target.value.replace(/[^0-9]/g, ''))}
-        placeholder="0"
-      />
-    </label>
-  )
-}
-
-/** タスクをタップしたときのシート：数字を入れて完了する */
+/**
+ * タスクをタップしたときのシート：完了する。
+ * 周回系・復習系の単元は残りの印の数を選ぶ。暗記（v0.6〜）と単元のない課題は、押すだけで完了。
+ */
 export function CompleteSheet({ task, onClose }: { task: Task; onClose: () => void }) {
   const data = useData()
   const { uid, openTasks, settings } = data
@@ -51,14 +32,8 @@ export function CompleteSheet({ task, onClose }: { task: Task; onClose: () => vo
   const mode = unit && material ? 'unit' : range && material ? 'memorize' : 'plain'
 
   const [marks, setMarks] = useState('')
-  const [known, setKnown] = useState('')
-  const [half, setHalf] = useState('')
-  const [unknown, setUnknown] = useState('')
-
-  const marksValue = parseCount(marks)
-  const memo = { known: parseCount(known) ?? 0, half: parseCount(half) ?? 0, unknown: parseCount(unknown) ?? 0 }
-  const memoTotal = memo.known + memo.half + memo.unknown
-  const canComplete = mode === 'unit' ? marksValue !== null : mode === 'memorize' ? memoTotal > 0 : true
+  const marksValue = /^\d+$/.test(marks.trim()) ? Number(marks.trim()) : null
+  const canComplete = mode === 'unit' ? marksValue !== null : true
 
   function handleComplete() {
     const now = Date.now()
@@ -83,19 +58,9 @@ export function CompleteSheet({ task, onClose }: { task: Task; onClose: () => vo
               : '完了しました',
         )
       } else if (mode === 'memorize' && range && material) {
-        const { changes, stepUp, nextTask } = completeMemorizeTask({
-          task,
-          range,
-          material,
-          openTasks,
-          settings,
-          today,
-          now,
-          result: memo,
-        })
+        const { changes, lap, finished } = completeMemorizeTask({ task, range, material, today, now })
         saveChangeSet(uid, changes)
-        const next = nextTask ? `次の復習は ${formatShortDate(nextTask.dueDate)}` : ''
-        toast(stepUp ? `間隔が広がりました。${next}` : `完了。${next}`)
+        toast(finished ? `「${range.label}」が目標の${material.targetLaps}周を終えました` : `${lapLabel(lap)}が終わりました`)
       } else {
         saveChangeSet(uid, completePlainTask(task, now))
         toast('完了しました')
@@ -107,9 +72,10 @@ export function CompleteSheet({ task, onClose }: { task: Task; onClose: () => vo
   }
 
   function handleDelete() {
-    if (!window.confirm('このタスクを削除しますか？\n（単元・範囲の記録は変わりません）')) return
+    const what = mode === 'memorize' ? 'この日の暗記の予定を外しますか？' : 'このタスクを削除しますか？'
+    if (!window.confirm(`${what}\n（単元・範囲の記録は変わりません）`)) return
     saveChangeSet(uid, { ...emptyChangeSet(), deleteTasks: [task.id] })
-    toast('タスクを削除しました')
+    toast(mode === 'memorize' ? '予定を外しました' : 'タスクを削除しました')
     onClose()
   }
 
@@ -121,18 +87,20 @@ export function CompleteSheet({ task, onClose }: { task: Task; onClose: () => vo
       preview = 'この単元には別の未完了タスクがあるので、次のタスクは作りません。'
     else preview = `次の${lapLabel(unit.lapCount + 2)}を ${formatShortDate(addDays(today, settings.cycleIntervalDays))} に作ります。`
   }
-  if (mode === 'memorize' && range && memoTotal > 0) {
-    const step = nextStep(range.step, memo)
-    const next = formatShortDate(addDays(today, intervalDays(step, settings.memorizeIntervals)))
-    const other = openTaskForRange(openTasks, { materialId: range.materialId, rangeId: range.id }, task.id)
-    preview = `${step > range.step ? '半知・未知が0なので、間隔が広がります。' : '間隔は据え置きです。'}${other ? '' : `次の復習は ${next}。`}`
+  if (mode === 'memorize' && range && material) {
+    const lap = range.lapCount + 1
+    preview =
+      lap >= material.targetLaps
+        ? `${lapLabel(lap)}。これで目標の${material.targetLaps}周を終えます。`
+        : `${lapLabel(lap)}（目標 ${material.targetLaps}周）。次にやる日は、ホームのカレンダーで決めます。`
   }
 
   const overdueDays = daysBetween(task.dueDate, today)
 
   return (
     <Sheet
-      title="完了する"
+      title={view.heading}
+      subtitle={mode === 'memorize' ? '暗記を完了する' : '完了する'}
       onClose={onClose}
       footer={
         <Button className="w-full py-3 text-base" disabled={!canComplete} onClick={handleComplete}>
@@ -141,25 +109,24 @@ export function CompleteSheet({ task, onClose }: { task: Task; onClose: () => vo
       }
     >
       <div className="space-y-5">
-        <div>
-          <div className="flex items-center gap-2">
-            <TaskBadge task={task} unit={unit} />
-            <span className={`text-xs ${overdueDays > 0 ? 'font-semibold text-red-700' : 'text-stone-500'}`}>
-              {overdueDays > 0 ? `${overdueDays}日遅れ` : `期限 ${formatShortDate(task.dueDate)}`}
-            </span>
-          </div>
-          <p className="mt-2 font-semibold">{view.heading}</p>
-          {view.sub && <p className="text-sm text-stone-500">{view.sub}</p>}
-          {view.exams.length > 0 && <p className="mt-1 text-xs text-stone-500">予定：{view.exams.map((e) => e.name).join('・')}</p>}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <TaskBadge task={task} unit={unit} />
+          {overdueDays > 0 ? <Badge tone="danger">{overdueDays}日遅れ</Badge> : <Badge>期限 {formatShortDate(task.dueDate)}</Badge>}
+          {view.exams.map((e) => (
+            <Badge key={e.id} tone="outline">
+              {e.name}
+            </Badge>
+          ))}
         </div>
+        {view.sub && <p className="-mt-2 text-sm text-stone-500">{view.sub}</p>}
 
         {mode === 'unit' && unit && (
           <div>
-            <p className="mb-2 text-sm font-medium text-stone-700">
+            <p className="mb-2.5 flex items-baseline justify-between text-sm font-semibold text-stone-700">
               残っている印の数
               {unit.lapCount > 0 && (
-                <span className="ml-2 font-normal text-stone-500">
-                  前回：{lapLabel(unit.lapCount)}・残り{unit.remainingMarks ?? '?'}
+                <span className="text-xs font-normal text-stone-500">
+                  前回 {lapLabel(unit.lapCount)}・残り{unit.remainingMarks ?? '?'}
                 </span>
               )}
             </p>
@@ -169,8 +136,9 @@ export function CompleteSheet({ task, onClose }: { task: Task; onClose: () => vo
                   key={n}
                   type="button"
                   onClick={() => setMarks(String(n))}
-                  className={`rounded-xl py-2.5 text-base font-semibold tabular-nums ring-1 ${
-                    marksValue === n ? 'bg-ink text-white ring-ink' : 'bg-white text-stone-800 ring-stone-300'
+                  aria-pressed={marksValue === n}
+                  className={`num rounded-xl py-3 text-lg font-semibold ring-1 transition active:scale-95 ${
+                    marksValue === n ? 'bg-ink text-white ring-ink' : 'bg-white text-stone-800 ring-stone-200 pc:hover:bg-stone-50'
                   }`}
                 >
                   {n}
@@ -178,7 +146,7 @@ export function CompleteSheet({ task, onClose }: { task: Task; onClose: () => vo
               ))}
             </div>
             <input
-              className={`${inputClass} text-center text-lg tabular-nums`}
+              className={`${inputClass} num text-center text-lg`}
               inputMode="numeric"
               pattern="[0-9]*"
               aria-label="残っている印の数"
@@ -189,24 +157,13 @@ export function CompleteSheet({ task, onClose }: { task: Task; onClose: () => vo
           </div>
         )}
 
-        {mode === 'memorize' && (
-          <div>
-            <p className="mb-2 text-sm text-stone-600">覚えた数を入力してください。</p>
-            <div className="grid grid-cols-3 gap-2">
-              <CountInput label="知" value={known} onChange={setKnown} />
-              <CountInput label="半知" value={half} onChange={setHalf} />
-              <CountInput label="未知" value={unknown} onChange={setUnknown} />
-            </div>
-          </div>
-        )}
-
         {mode === 'plain' && <p className="text-sm text-stone-600">この課題は単元に紐づいていないので、完了にするだけです。</p>}
 
-        {preview && <p className="rounded-xl bg-stone-100 px-3 py-2 text-sm text-stone-700">{preview}</p>}
+        {preview && <p className="rounded-xl bg-stone-200/60 px-3.5 py-2.5 text-sm leading-relaxed text-stone-700">{preview}</p>}
 
-        <div className="pt-2 text-center">
-          <button type="button" onClick={handleDelete} className="text-sm text-red-700 underline-offset-2 active:underline">
-            このタスクを削除
+        <div className="pt-1 text-center">
+          <button type="button" onClick={handleDelete} className="text-sm text-red-700 underline-offset-2 active:underline pc:hover:underline">
+            {mode === 'memorize' ? 'この日の予定を外す' : 'このタスクを削除'}
           </button>
         </div>
       </div>

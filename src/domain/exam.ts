@@ -1,7 +1,7 @@
 import { emptyChangeSet, type ChangeSet } from './changeset.ts'
 import { addDays, daysBetween, maxDate, minDate } from './date.ts'
-import { openTaskForRange, openTaskForUnit, rangeKey, unitKey, unitTaskTitle } from './lookup.ts'
-import { rangeTaskTitle } from './memorize.ts'
+import { openTaskForUnit, openTasksForRange, rangeKey, unitKey, unitTaskTitle } from './lookup.ts'
+import { isRangeFinished, rangeTaskTitle } from './memorize.ts'
 import type { Exam, ISODate, Material, Range, Settings, Task, Unit } from './types.ts'
 
 // 予定（試験・大会・旅行・趣味など）。データ上は v0.1 の「試験」（exams / examIds）のまま扱う。
@@ -46,9 +46,9 @@ export interface ExamSaveResult {
  * 周回系の単元：
  * - 卒業済みは何もしない／未着手は first／周回中は exam（仕上げ）を作る。期限は「予定の日 - 何日前」
  * - その単元に未完了タスクがあれば新しく作らず、examIds に予定を足して期限を早い方にする（重複をまとめる）
- * 暗記系の範囲（v0.2〜）：
- * - 未完了の暗記タスクがあれば examIds に予定を足すだけ（復習の間隔は変えない）
- * - なければ範囲を開始（または再開）し、今日が期限の暗記タスクを作る
+ * 暗記系の範囲（v0.2〜、v0.6 で変更）：
+ * - カレンダーに入れた暗記タスクがあれば、その examIds に予定を足すだけ（日付は変えない）
+ * - なければ、単元と同じ期限（予定の日 − 何日前）の暗記タスクを1つ作る。目標の周回数を終えた範囲は何もしない
  * 範囲から外れた単元・範囲：未完了タスクの examIds から予定を外すだけ（タスクは消さない・期限も変えない）
  */
 export function applyExamSave(input: ExamSaveInput): ExamSaveResult {
@@ -117,17 +117,16 @@ export function applyExamSave(input: ExamSaveInput): ExamSaveResult {
     const material = materials.find((m) => m.id === ref.materialId)
     if (!range || !material) continue
 
-    const existing = openTaskForRange(openTasks, ref)
-    if (existing) {
-      const examIds = withExam(existing)
-      if (examIds !== existing.examIds) changes.updateTasks.push({ id: existing.id, patch: { examIds } })
+    // カレンダーに入れた予定があれば、その予定に向けたものにする（日付は変えない）
+    const planned = openTasksForRange(openTasks, ref)
+    if (planned.length > 0) {
+      for (const task of planned) {
+        const examIds = withExam(task)
+        if (examIds !== task.examIds) changes.updateTasks.push({ id: task.id, patch: { examIds } })
+      }
       merged += 1
-    } else {
-      changes.updateRanges.push({
-        materialId: range.materialId,
-        rangeId: range.id,
-        patch: { started: true, nextReviewAt: today },
-      })
+    } else if (!isRangeFinished(range, material)) {
+      // 予定が入っていなければ、単元と同じく「予定の日 − 何日前」に1回分を入れる（目標の周回数を終えた範囲は何もしない）
       changes.createTasks.push({
         type: 'memorize',
         title: rangeTaskTitle(material, range),
@@ -135,7 +134,7 @@ export function applyExamSave(input: ExamSaveInput): ExamSaveResult {
         unitId: null,
         rangeId: range.id,
         examIds: [exam.id],
-        dueDate: today,
+        dueDate,
       })
       created += 1
     }

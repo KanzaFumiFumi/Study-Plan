@@ -3,9 +3,8 @@ import { calendarWeeks, jstStartOfDayMs, shiftMonth, todayJST } from './date.ts'
 import { kanjiNumber, lapLabel, taskLabel } from './labels.ts'
 import { LIST_DEFS, listKeyOf, tasksByList } from './lists.ts'
 import { setPlannedForToday } from './manual.ts'
-import { scheduleRanges } from './memorize.ts'
 import { groupBySubject, moveSubjectGroup, moveWithin, sortMaterials } from './shelf.ts'
-import { makeMaterial, makeRange, makeTask, makeUnit } from './test-helpers.ts'
+import { makeMaterial, makeTask, makeUnit } from './test-helpers.ts'
 import type { TaskType } from './types.ts'
 
 const today = '2026-10-02'
@@ -89,39 +88,6 @@ describe('今日やる', () => {
       { id: 't', patch: { plannedFor: null } },
     ])
     expect(setPlannedForToday({ ...t, plannedFor: today }, today, true).updateTasks).toEqual([])
-  })
-})
-
-describe('カレンダーで暗記の範囲を日付に割り当てる', () => {
-  const leap = makeMaterial({ id: 'leap', name: 'LEAP', kind: 'memorize' })
-  const fresh = makeRange({ id: 'r1', materialId: 'leap', label: 'No.1-100' })
-  const reviewing = makeRange({ id: 'r2', materialId: 'leap', label: 'No.101-200', started: true, step: 2 })
-  const review = makeTask({ id: 'k2', type: 'memorize', materialId: 'leap', unitId: null, rangeId: 'r2', dueDate: '2026-10-08' })
-
-  test('未開始の範囲は、その日に開始する暗記タスクを作る。復習中の範囲は復習日をその日に移す', () => {
-    const { changes, created, moved } = scheduleRanges({
-      targets: [
-        { range: fresh, material: leap },
-        { range: reviewing, material: leap },
-      ],
-      openTasks: [review],
-      date: '2026-10-05',
-    })
-    expect([created, moved]).toEqual([1, 1])
-    expect(changes.createTasks).toEqual([
-      { type: 'memorize', title: 'LEAP No.1-100', materialId: 'leap', unitId: null, rangeId: 'r1', examIds: [], dueDate: '2026-10-05' },
-    ])
-    expect(changes.updateTasks).toEqual([{ id: 'k2', patch: { dueDate: '2026-10-05' } }])
-    expect(changes.updateRanges).toEqual([
-      { materialId: 'leap', rangeId: 'r1', patch: { started: true, nextReviewAt: '2026-10-05' } },
-      { materialId: 'leap', rangeId: 'r2', patch: { nextReviewAt: '2026-10-05' } },
-    ])
-  })
-
-  test('すでにその日になっている範囲は変更なし', () => {
-    const { changes, moved } = scheduleRanges({ targets: [{ range: reviewing, material: leap }], openTasks: [review], date: '2026-10-08' })
-    expect(moved).toBe(0)
-    expect(changes.updateTasks).toEqual([])
   })
 })
 

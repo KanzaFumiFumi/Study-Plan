@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { useData } from '../data/store.tsx'
-import { rangeKey, unitKey } from '../domain/lookup.ts'
+import { openTasksForRange, rangeKey, unitKey } from '../domain/lookup.ts'
 import { formatShortDate } from '../domain/date.ts'
 import { MATERIAL_KIND_LABEL, hasUnits, type Material, type Range, type Task, type Unit } from '../domain/types.ts'
 import { UnitStatus } from './UnitStatus.tsx'
@@ -38,8 +38,8 @@ function GroupedPicker({
         const count = keys.filter((k) => selected.has(k)).length
         const all = count === keys.length
         return (
-          <details key={material.id} open className="overflow-hidden rounded-xl bg-white ring-1 ring-stone-200">
-            <summary className="flex cursor-pointer items-center gap-2 bg-stone-50 px-3 py-2 text-sm font-semibold">
+          <details key={material.id} open className="overflow-hidden rounded-2xl bg-white ring-1 ring-stone-200/80">
+            <summary className="flex cursor-pointer items-center gap-2 bg-stone-50 px-3.5 py-2.5 text-sm font-semibold">
               <span className="min-w-0 flex-1 truncate">
                 {material.name}
                 <span className="ml-1.5 text-[11px] font-normal text-stone-500">{MATERIAL_KIND_LABEL[material.kind]}</span>
@@ -59,7 +59,7 @@ function GroupedPicker({
             <ul className="divide-y divide-stone-100">
               {items.map((item) => (
                 <li key={item.key}>
-                  <label className="flex cursor-pointer items-center gap-3 px-3 py-2.5 active:bg-stone-50">
+                  <label className="flex cursor-pointer items-center gap-3 px-3.5 py-2.5 active:bg-stone-50 pc:hover:bg-stone-50">
                     <input
                       type="checkbox"
                       className="h-5 w-5 shrink-0 accent-ink"
@@ -112,21 +112,31 @@ export function UnitPicker({
   return <GroupedPicker groups={groups} selected={selected} onChange={onChange} />
 }
 
-/** 範囲の状態。次の暗記タスクがあれば、その日付を出す（カレンダーで割り当てるときに分かるように） */
-function rangeStatus(range: Range, openTasks: Task[]): ReactNode {
-  const next = openTasks.find((t) => t.materialId === range.materialId && t.rangeId === range.id)
-  if (next) return <Badge tone="outline">次：{formatShortDate(next.dueDate)}</Badge>
-  return range.started ? <Badge tone="outline">復習中</Badge> : <Badge>未開始</Badge>
+/** 範囲の状態（v0.6〜）：何周したか／目標と、カレンダーに入れた予定の数 */
+function rangeStatus(range: Range, material: Material, openTasks: Task[]): ReactNode {
+  const planned = openTasksForRange(openTasks, { materialId: range.materialId, rangeId: range.id })
+  const finished = range.lapCount >= material.targetLaps
+  return (
+    <span className="flex shrink-0 items-center gap-1">
+      {planned.length > 0 && <Badge tone="outline">予定{planned.length}・次 {formatShortDate(planned[0].dueDate)}</Badge>}
+      <Badge tone={finished ? 'ink' : 'plain'}>
+        {range.lapCount}/{material.targetLaps}周
+      </Badge>
+    </span>
+  )
 }
 
 /** 教材ごとに暗記の範囲をチェックボックスで選ぶ（予定の範囲・カレンダーの割り当て）。selected は rangeKey の集合 */
 export function RangePicker({
   selected,
   onChange,
+  filter = () => true,
   alwaysShowMaterialIds = [],
 }: {
   selected: ReadonlySet<string>
   onChange: (next: Set<string>) => void
+  /** 出す範囲（カレンダーでは目標の周回数を終えた範囲を出さない） */
+  filter?: (range: Range, material: Material) => boolean
   alwaysShowMaterialIds?: string[]
 }) {
   const { materials, ranges, openTasks } = useData()
@@ -135,15 +145,15 @@ export function RangePicker({
     .map((material) => ({
       material,
       items: ranges
-        .filter((r) => r.materialId === material.id)
+        .filter((r) => r.materialId === material.id && filter(r, material))
         .map((r) => ({
           key: rangeKey({ materialId: r.materialId, rangeId: r.id }),
           label: r.label,
-          status: rangeStatus(r, openTasks),
+          status: rangeStatus(r, material, openTasks),
         })),
     }))
     .filter((g) => g.items.length > 0)
 
-  if (groups.length === 0) return <EmptyState>暗記系の教材がありません。本棚で単語帳などを登録すると選べます。</EmptyState>
+  if (groups.length === 0) return <EmptyState>選べる暗記の範囲がありません。本棚で単語帳などを登録すると選べます。</EmptyState>
   return <GroupedPicker groups={groups} selected={selected} onChange={onChange} />
 }

@@ -41,5 +41,7 @@ export function taskLabel(task: Pick<Task, 'type' | 'status' | 'lap'>, unit?: Pi
     if (lap) return lapLabel(lap)
     if (task.type === 'first') return lapLabel(1)
   }
+  // 完了した暗記（v0.6〜）は、その範囲の何周目だったか
+  if (task.type === 'memorize' && task.status === 'done' && task.lap) return `暗記 ${lapLabel(task.lap)}`
   return TASK_TYPE_LABEL[task.type]
 }

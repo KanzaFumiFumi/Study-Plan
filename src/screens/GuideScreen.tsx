@@ -121,47 +121,44 @@ function EventFigure({ leadDays }: { leadDays: number }) {
   )
 }
 
-/** 図3：暗記は間隔を広げて復習 */
-function MemorizeFigure({ intervals }: { intervals: number[] }) {
-  const widths = [28, 40, 54, 68, 86]
-  const shown = intervals.slice(0, widths.length)
-  const xs = [24]
-  shown.forEach((_, i) => xs.push(xs[i] + widths[i]))
+/** 図3：暗記は、目標の周回数ぶん、カレンダーでやる日を決める（v0.6〜） */
+function MemorizeFigure() {
+  const xs = [40, 120, 200]
+  const labels = ['一周目', '二周目', '三周目']
   return (
-    <svg viewBox="0 0 320 92" className="w-full" aria-hidden>
-      <line x1={16} y1={52} x2={304} y2={52} stroke={LINE} strokeWidth={2} />
-      {shown.map((days, i) => {
-        const a = xs[i]
-        const b = xs[i + 1]
-        const mid = (a + b) / 2
-        return (
-          <g key={i}>
-            <path d={`M${a + 4} 46 Q${mid} ${30 - i * 2} ${b - 4} 46`} fill="none" stroke={MUTED} strokeWidth={1.2} />
-            <text x={mid} y={24 - i * 2} textAnchor="middle" fontSize={11} fontWeight={700} fill={INK}>
-              {days}日
-            </text>
-          </g>
-        )
-      })}
+    <svg viewBox="0 0 320 112" className="w-full" aria-hidden>
+      <line x1={16} y1={52} x2={250} y2={52} stroke={LINE} strokeWidth={2} />
       {xs.map((x, i) => (
-        <circle key={x} cx={x} cy={52} r={5} fill={i === 0 ? '#fff' : INK} stroke={INK} strokeWidth={2} />
+        <g key={x}>
+          <rect x={x - 26} y={18} width={52} height={20} rx={6} fill={SOFT} />
+          <text x={x} y={32} textAnchor="middle" fontSize={10.5} fill={MUTED}>
+            カレンダー
+          </text>
+          <circle cx={x} cy={52} r={7} fill={INK} />
+          <text x={x} y={78} textAnchor="middle" fontSize={11.5} fontWeight={700} fill={INK}>
+            {labels[i]}
+          </text>
+          <text x={x} y={95} textAnchor="middle" fontSize={10.5} fill={MUTED}>
+            チェックだけ
+          </text>
+        </g>
       ))}
-      <text x={24} y={78} textAnchor="middle" fontSize={11} fill={MUTED}>
-        開始
-      </text>
-      <text x={306} y={78} textAnchor="end" fontSize={11} fill={MUTED}>
-        半知・未知が0なら次の間隔へ
+      <rect x={252} y={36} width={62} height={32} rx={10} fill={INK} />
+      <text x={283} y={57} textAnchor="middle" fontSize={13} fontWeight={700} fill="#fff">
+        完了
       </text>
     </svg>
   )
 }
 
 const TIPS: [string, string][] = [
-  ['授業で新しい範囲に進んだ', '「今日」の ＋授業の一周目'],
-  ['学校の課題が出た', '「今日」の ＋学校課題（単元に紐づけると周回の記録になる）'],
-  ['卒業した単元をもう一度やりたい', '「今日」の ＋解き直し'],
-  ['試験・大会・旅行・趣味の日が決まった', '「予定」に登録して範囲を選ぶ'],
-  ['単語帳を始めたい', '「本棚」の暗記系で範囲の「開始」'],
+  ['授業で新しい範囲に進んだ', 'ホームの右下の ＋ →「授業の一周目」'],
+  ['学校の課題が出た', '＋ →「学校課題」（単元に紐づけると周回の記録になる）'],
+  ['卒業した単元をもう一度やりたい', '＋ →「解き直し」'],
+  ['試験・大会・旅行・趣味の日が決まった', '＋ →「予定」で登録して範囲を選ぶ（カレンダーの日付からも追加できる）'],
+  ['単語帳をいつやるか決めたい', 'ホームのカレンダーで日付をタップし、暗記の範囲を割り当てる'],
+  ['間違えて完了した・アーカイブへ送った', 'チェックを外す／アーカイブの「未完了に戻す」'],
+  ['解き終えた教材をしまいたい・戻したい', '本棚の「編集」→「アーカイブする」／アーカイブの「本棚に戻す」'],
 ]
 
 /** 使い方（説明ページ） */
@@ -172,15 +169,15 @@ export function GuideScreen({ onBack }: { onBack: () => void }) {
       <BackButton onClick={onBack}>戻る</BackButton>
       <ScreenTitle>使い方</ScreenTitle>
       <p className="text-sm leading-relaxed text-stone-600">
-        問題集は「単元が何周目で、印がいくつ残っているか」だけを記録します。入力はタスクを完了するときの数字1つだけ。次にやることは、アプリが自動で「今日」に並べます。
+        問題集は「単元が何周目で、印がいくつ残っているか」だけを記録します。入力はタスクを完了するときの数字1つだけ。次にやることは、アプリが自動でホームのチェックリストに並べます。
       </p>
 
       <Section title="毎日の使い方">
         <ol className="space-y-2">
           {[
-            ['「今日」を開く', 'やることが優先順に並んでいます'],
+            ['ホームを開く', 'チェックリストに、やることが優先順に並んでいます'],
             ['紙の問題集で解く', '間違えた問題に ○△× の印をつける'],
-            ['タスクをタップして完了', '残った印の数を選ぶだけ'],
+            ['四角を押して完了', '問題集は残った印の数を選ぶだけ。暗記はチェックだけ'],
           ].map(([title, sub], i) => (
             <li key={title} className="flex gap-3 rounded-2xl bg-white p-3 ring-1 ring-stone-200">
               <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ink text-xs font-bold text-white">
@@ -200,7 +197,7 @@ export function GuideScreen({ onBack }: { onBack: () => void }) {
           <CycleFigure interval={settings.cycleIntervalDays} />
         </Figure>
         <p className="mt-3 text-sm leading-relaxed text-stone-600">
-          印が残っていれば {settings.cycleIntervalDays}日後にまた「今日」に出てきます。0 になった単元は卒業です。
+          印が残っていれば {settings.cycleIntervalDays}日後にまたホームのチェックリストに出てきます。0 になった単元は卒業です。
         </p>
       </Section>
 
@@ -209,16 +206,16 @@ export function GuideScreen({ onBack }: { onBack: () => void }) {
           <EventFigure leadDays={settings.examLeadDays} />
         </Figure>
         <p className="mt-3 text-sm leading-relaxed text-stone-600">
-          試験・大会・旅行・趣味など、目標の日を「予定」に登録して範囲を選ぶと、まだ卒業していない単元にタスクができます（何周目かで表示）。何日前までに仕上げるかは予定ごとに選べます。範囲が重なる予定があっても、同じ単元のタスクは1つにまとまります。
+          試験・大会・旅行・趣味など、目標の日をホームの「＋」→「予定」で登録して範囲を選ぶと、まだ卒業していない単元にタスクができます（何周目かで表示）。何日前までに仕上げるかは予定ごとに選べます。範囲が重なる予定があっても、同じ単元のタスクは1つにまとまります。
         </p>
       </Section>
 
-      <Section title="暗記は、間隔を広げて復習">
-        <Figure label="暗記の復習間隔">
-          <MemorizeFigure intervals={settings.memorizeIntervals} />
+      <Section title="暗記は、決めた回数をカレンダーで">
+        <Figure label="暗記の進め方">
+          <MemorizeFigure />
         </Figure>
         <p className="mt-3 text-sm leading-relaxed text-stone-600">
-          範囲ごとに 知・半知・未知 の数を入れます。半知と未知が 0 なら次の復習までの間隔が広がり、残っていれば同じ間隔でもう一度出てきます。
+          単語帳などの暗記系は、教材ごとに「目標の周回数」を決めます。ホームのカレンダーで日付をタップして範囲を割り当てると、その日のチェックリストに出ます。1つの範囲に、目標の周回数まで先の日を入れておけます。終わったら四角を押すだけで、その範囲の周回数が1つ増え、目標に届けば完了です。
         </p>
       </Section>
 

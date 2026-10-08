@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { updateMaterial } from '../data/commands.ts'
 import { useDoneTasks } from '../data/queries.ts'
 import { useData } from '../data/store.tsx'
 import { viewTask } from '../data/taskView.ts'
@@ -7,9 +8,10 @@ import { LIST_DEFS, LIST_GROUPS, LIST_GROUP_LABEL, archivedTasksByList, type Lis
 import { MATERIAL_KIND_LABEL, type MaterialKind, type Task } from '../domain/types.ts'
 import { useIsPc } from '../hooks/useLayout.ts'
 import { useToday } from '../hooks/useToday.ts'
-import { DoneMark } from '../components/TaskCheck.tsx'
+import { DoneMark, useTaskActions } from '../components/TaskCheck.tsx'
+import { useToast } from '../components/Toast.tsx'
 import { TaskBadge } from '../components/TaskBadge.tsx'
-import { Badge, EmptyState, ScreenTitle } from '../components/ui.tsx'
+import { Badge, Button, EmptyState, ScreenTitle } from '../components/ui.tsx'
 import { MaterialCard } from './ShelfScreen.tsx'
 import { MaterialDetail } from './shelf/MaterialDetail.tsx'
 
@@ -46,7 +48,7 @@ function completedDate(task: Task): string {
   return task.completedAt === null ? task.dueDate : todayJST(new Date(task.completedAt))
 }
 
-function ArchivedRow({ task }: { task: Task }) {
+function ArchivedRow({ task, onRestore }: { task: Task; onRestore: () => void }) {
   const data = useData()
   const view = viewTask(task, data)
   const isAssignment = task.type === 'assignment'
@@ -61,13 +63,22 @@ function ArchivedRow({ task }: { task: Task }) {
         <span className="block text-sm leading-snug font-medium">{title}</span>
         {result && <span className="mt-0.5 block text-xs text-stone-500">{result}</span>}
       </div>
-      <TaskBadge task={task} unit={view.unit} />
+      <div className="flex shrink-0 flex-col items-end gap-1.5">
+        <TaskBadge task={task} unit={view.unit} />
+        <button
+          type="button"
+          onClick={onRestore}
+          className="rounded-full px-2.5 py-1 text-[11px] font-semibold text-stone-600 ring-1 ring-stone-300 transition active:scale-95 active:bg-stone-100 pc:hover:bg-stone-50"
+        >
+          未完了に戻す
+        </button>
+      </div>
     </li>
   )
 }
 
 /** 完了したタスクを、完了した日ごとに（新しい順） */
-function ArchivedTasks({ tasks }: { tasks: Task[] }) {
+function ArchivedTasks({ tasks, onRestore }: { tasks: Task[]; onRestore: (task: Task) => void }) {
   const [limit, setLimit] = useState(PAGE_SIZE)
   if (tasks.length === 0) return <EmptyState>まだありません。</EmptyState>
 
@@ -81,9 +92,9 @@ function ArchivedTasks({ tasks }: { tasks: Task[] }) {
       {[...byDate].map(([date, list]) => (
         <div key={date}>
           <p className="mb-1.5 px-1 text-xs font-semibold text-stone-500">{formatShortDate(date)} に完了</p>
-          <ul className="divide-y divide-stone-100 overflow-hidden rounded-2xl bg-white ring-1 ring-stone-200">
+          <ul className="divide-y divide-stone-100 overflow-hidden rounded-3xl bg-white ring-1 ring-stone-200/80">
             {list.map((task) => (
-              <ArchivedRow key={task.id} task={task} />
+              <ArchivedRow key={task.id} task={task} onRestore={() => onRestore(task)} />
             ))}
           </ul>
         </div>
@@ -109,6 +120,14 @@ export function ArchiveScreen() {
   const [selected, setSelected] = useState<ArchiveKey>(loadSelected)
   const [openMaterialId, setOpenMaterialId] = useState<string | null>(null)
 
+  const actions = useTaskActions(() => {})
+  const toast = useToast()
+
+  function restoreMaterial(id: string, name: string) {
+    updateMaterial(uid, id, { archived: false })
+    toast(`「${name}」を本棚に戻しました`)
+  }
+
   const openMaterial = materials.find((m) => m.id === openMaterialId)
   if (openMaterial) {
     return (
@@ -133,17 +152,17 @@ export function ArchiveScreen() {
   }
 
   const itemClass = (active: boolean) =>
-    `flex w-full items-center justify-between px-4 py-2.5 text-left text-sm ${
+    `flex w-full items-center justify-between px-5 py-2.5 text-left text-sm transition ${
       active ? 'bg-ink font-semibold text-white' : 'text-stone-800 active:bg-stone-100 pc:hover:bg-stone-50'
     }`
   const groupClass =
-    'sticky top-0 z-10 border-b border-stone-100 bg-stone-50 px-4 py-1.5 text-[11px] font-semibold tracking-wider text-stone-500'
+    'sticky top-0 z-10 border-b border-stone-100 bg-stone-50/95 px-5 py-1.5 text-[11px] font-bold tracking-[0.14em] text-stone-500 backdrop-blur'
 
   // 見るものを選ぶ欄（リストの画面と同じ並び＋解き終えた教材）
   const selector = (
     <nav
       aria-label="アーカイブのリストを選ぶ"
-      className="max-h-64 overflow-y-auto rounded-2xl bg-white ring-1 ring-stone-200 pc:sticky pc:top-6 pc:max-h-[calc(100dvh-8rem)]"
+      className="thin-scroll max-h-64 overflow-y-auto rounded-3xl bg-white ring-1 ring-stone-200/80 pc:sticky pc:top-8 pc:max-h-[calc(100dvh-8rem)]"
     >
       <div>
         <p className={groupClass}>教材</p>
@@ -190,7 +209,7 @@ export function ArchiveScreen() {
         <header className="mb-3 px-1">
           <h2 className="font-bold tracking-wide">解き終えた教材</h2>
           <p className="mt-0.5 text-[11px] leading-relaxed text-stone-500">
-            本棚でアーカイブした問題集・単語帳など。タップすると単元・範囲の記録を見られます（本棚に戻すときは「編集」から）。
+            本棚でアーカイブした問題集・単語帳など。タップすると記録を見られます。「本棚に戻す」で、また使えます。
           </p>
         </header>
         {finished.length === 0 ? (
@@ -211,7 +230,16 @@ export function ArchiveScreen() {
                   </p>
                   <ul className="space-y-3 pc:grid pc:grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] pc:gap-3 pc:space-y-0">
                     {list.map((m) => (
-                      <MaterialCard key={m.id} material={m} onOpen={() => setOpenMaterialId(m.id)} />
+                      <MaterialCard
+                        key={m.id}
+                        material={m}
+                        onOpen={() => setOpenMaterialId(m.id)}
+                        action={
+                          <Button variant="soft" className="px-3.5 py-1.5 text-xs" onClick={() => restoreMaterial(m.id, m.name)}>
+                            本棚に戻す
+                          </Button>
+                        }
+                      />
                     ))}
                   </ul>
                 </div>
@@ -231,11 +259,11 @@ export function ArchiveScreen() {
             </span>
           </div>
           <p className="mt-0.5 text-[11px] leading-relaxed text-stone-500">
-            完了したタスク（前の日までに完了したものと、「アーカイブへ」を押したもの）
+            前の日までに完了したものと、「アーカイブへ」を押したもの。「未完了に戻す」で、リストに戻せます
           </p>
         </header>
         {done ? (
-          <ArchivedTasks key={def.key} tasks={lists[def.key]} />
+          <ArchivedTasks key={def.key} tasks={lists[def.key]} onRestore={(task) => actions.restore(task, done)} />
         ) : (
           <p className="py-10 text-center text-sm text-stone-400">読み込み中…</p>
         )}
@@ -244,7 +272,7 @@ export function ArchiveScreen() {
 
   return (
     <>
-      <ScreenTitle action={<span className="text-sm text-stone-500">{done ? `完了 ${total}件` : ''}</span>}>アーカイブ</ScreenTitle>
+      <ScreenTitle eyebrow={done ? `完了 ${total}件・教材 ${finished.length}冊` : '読み込み中…'}>アーカイブ</ScreenTitle>
       {pc ? (
         // PC版：左に選ぶ欄、右に中身
         <div className="grid grid-cols-[16rem_minmax(0,1fr)] items-start gap-6">

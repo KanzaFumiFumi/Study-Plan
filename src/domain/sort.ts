@@ -1,4 +1,4 @@
-import { addDays, daysBetween } from './date.ts'
+import { daysBetween } from './date.ts'
 import type { Exam, ISODate, Task, TaskType } from './types.ts'
 
 /** 4.7 今日の一覧の並び順（小さいほど上） */
@@ -27,29 +27,17 @@ export function isForToday(task: Task, today: ISODate): boolean {
 }
 
 /**
- * これからのタスク（v0.2）：期限が明日から days 日後までの未完了タスクを、期限の早い順（同じ日は 4.7 の種類順）に。
- * later は、それより先に期限があるタスクの数。「今日やる」と選んだものは今日のチェックリストに出すので除く。
+ * その日が期限の未完了タスク（v0.6〜、ホームのカレンダーで日付を選んだとき）。4.7 の種類の順、同じ種類は作った順。
+ * hiddenMaterialIds（アーカイブした教材など）のタスクは出さない。
  */
-export function upcomingTasks(
+export function tasksDueOn(
   openTasks: Task[],
-  today: ISODate,
-  days: number,
+  date: ISODate,
   hiddenMaterialIds: ReadonlySet<string> = new Set(),
-): { tasks: Task[]; later: number } {
-  const until = addDays(today, days)
-  const visible = openTasks.filter(
-    (t) => t.status === 'open' && !isForToday(t, today) && !(t.materialId && hiddenMaterialIds.has(t.materialId)),
-  )
-  const tasks = visible
-    .filter((t) => t.dueDate <= until)
-    .sort(
-      (a, b) =>
-        a.dueDate.localeCompare(b.dueDate) ||
-        TYPE_PRIORITY[a.type] - TYPE_PRIORITY[b.type] ||
-        a.createdAt - b.createdAt ||
-        a.id.localeCompare(b.id),
-    )
-  return { tasks, later: visible.length - tasks.length }
+): Task[] {
+  return openTasks
+    .filter((t) => t.status === 'open' && t.dueDate === date && !(t.materialId && hiddenMaterialIds.has(t.materialId)))
+    .sort((a, b) => TYPE_PRIORITY[a.type] - TYPE_PRIORITY[b.type] || a.createdAt - b.createdAt || a.id.localeCompare(b.id))
 }
 
 /** タスクに紐づく試験のうち、いちばん近い試験日（今日以降を優先。なければ過去の試験で最も早い日） */

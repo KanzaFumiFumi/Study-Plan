@@ -112,16 +112,14 @@ const newUnitData = (name: string, order: number) => ({
 const newRangeData = (label: string, order: number) => ({
   label,
   order,
-  started: false,
-  step: 0,
-  nextReviewAt: null,
-  lastResult: null,
+  lapCount: 0,
+  lastDoneAt: null,
 })
 
 /** 教材を追加する。lines は単元名（周回系・復習系）または範囲名（暗記系）。追加した教材のIDを返す */
 export function addMaterial(
   uid: string,
-  input: { name: string; subject: string; kind: MaterialKind },
+  input: { name: string; subject: string; kind: MaterialKind; targetLaps: number },
   lines: string[],
 ): string {
   const w = new Writer()
@@ -144,7 +142,7 @@ export function reorderMaterials(uid: string, orderedIds: string[]): void {
 export function updateMaterial(
   uid: string,
   materialId: string,
-  patch: Partial<{ name: string; subject: string; archived: boolean }>,
+  patch: Partial<{ name: string; subject: string; archived: boolean; targetLaps: number }>,
 ): void {
   const w = new Writer()
   w.update(materialDoc(uid, materialId), patch)
